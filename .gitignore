@@ -1,0 +1,8 @@
+/build/
+/inputs/
+/app/src/main/assets/
+*.apk
+*.keystore
+*.jks
+__pycache__/
+node_modules/

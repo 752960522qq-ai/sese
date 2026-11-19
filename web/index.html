@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#122124" />
+    <title>姿态排练室</title>
+    <link rel="stylesheet" href="./studio.css" />
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <svg aria-hidden="true" viewBox="0 0 32 32">
+          <path d="M3 11V4h7m12 24h7v-7M7 18l7-4 5-6 5 5m-8-1-3 7 6 3 3 5m-9-8-4 5-4 3" />
+          <circle cx="20" cy="5" r="2" />
+        </svg>
+        <h1>姿态排练室</h1>
+      </div>
+      <div class="seg" role="group" aria-label="工作模式">
+        <button id="walk" aria-pressed="true">自由移动</button
+        ><button id="pose" aria-pressed="false">摆姿</button>
+      </div>
+      <div class="header-right">
+        <button id="group" aria-pressed="false">多人模式</button><button id="openSaves">存档</button
+        ><button id="togglePanel" aria-expanded="true">收起面板</button>
+      </div>
+    </header>
+    <main id="layout">
+      <section id="stage" aria-label="三维舞台">
+        <canvas id="world" aria-label="拖动旋转视角，双指平移或缩放"></canvas>
+        <div id="stamp"><i></i><span id="sceneLabel">单人 · 甄芙</span></div>
+        <div id="views" aria-label="镜头">
+          <button data-view="fit">全景</button><button data-view="front">正面</button
+          ><button data-view="side">侧面</button><button data-view="top">俯视</button>
+        </div>
+        <div id="stick" role="group" aria-label="甄芙移动摇杆">
+          <div class="ring"></div>
+          <div id="knob"></div>
+        </div>
+        <div id="stageHint">单指旋转　双指平移 / 缩放</div>
+        <div id="busy" aria-live="polite">
+          <div class="loader"></div>
+          <span id="loadHint">正在打开排练室…</span>
+        </div>
+      </section>
+      <aside id="panel">
+        <div class="cast-head"><label for="actor">场上角色</label><span id="count">1 人</span></div>
+        <div class="row">
+          <select id="actor" aria-label="当前角色"></select
+          ><button id="remove" class="subtle" hidden>移除</button>
+        </div>
+        <div id="casting"><button id="addZ">＋ 甄芙</button><button id="addL">＋ 里昂</button></div>
+        <nav class="tabs" aria-label="编辑工具">
+          <button data-pane="motion" aria-pressed="true">动作</button
+          ><button data-pane="transform">位置</button><button data-pane="library">存档</button>
+        </nav>
+        <div class="scroll-panel">
+          <section id="pane-motion">
+            <div id="walkGuide">
+              <h2>摇杆移动</h2>
+              <p>轻推行走，推到底奔跑。进入摆姿后，可以定格动作和调整关节。</p>
+              <button class="primary wide" id="editPose">进入摆姿</button>
+            </div>
+            <div id="poseTools" hidden>
+              <label for="clip">动作片段</label
+              ><select id="clip"></select>
+              <div class="time-label">
+                <label for="time">动作进度</label><output id="timeText">0.00 s</output>
+              </div>
+              <input id="time" aria-label="动作进度" type="range" min="0" max="1" step="any" value="0" />
+              <div class="row transport">
+                <button id="prev" aria-label="上一帧">−1 帧</button
+                ><button class="primary" id="play">播放</button
+                ><button id="next" aria-label="下一帧">＋1 帧</button
+                ><select id="rate" aria-label="播放速度">
+                  <option value=".25">0.25×</option>
+                  <option value=".5">0.5×</option>
+                  <option value="1" selected>1×</option>
+                  <option value="2">2×</option>
+                </select>
+              </div>
+              <details id="jointBox" open>
+                <summary>关节微调</summary>
+                <label for="joint" class="sr">关节</label
+                ><select id="joint"></select>
+                <div id="jointAxes"></div>
+                <button id="jointReset" class="text-button">复位此关节</button>
+              </details>
+              <details id="recordBox">
+                <summary>自编动作</summary>
+                <p>摆好一帧后记录，再调整姿势或位置并记录下一帧。</p>
+                <div class="row">
+                  <label for="spacing">帧间隔</label
+                  ><select id="spacing">
+                    <option value=".25">0.25 秒</option>
+                    <option value=".5" selected>0.5 秒</option>
+                    <option value="1">1 秒</option>
+                    <option value="2">2 秒</option>
+                  </select>
+                </div>
+                <div class="row">
+                  <button id="record">记录关键帧</button><button id="removeKey">撤回一帧</button>
+                </div>
+                <div class="row">
+                  <span id="keyCount">0 个关键帧</span><button id="previewKeys">预览自编动作</button>
+                </div>
+              </details>
+            </div>
+          </section>
+          <section id="pane-transform" hidden>
+            <h2>角色位置</h2>
+            <p>按舞台坐标调整位置和朝向。数值可直接输入。</p>
+            <div class="row step-row">
+              <label for="step">移动步长</label
+              ><select id="step">
+                <option value=".01">1 厘米</option>
+                <option value=".05" selected>5 厘米</option>
+                <option value=".25">25 厘米</option>
+                <option value="1">1 米</option>
+              </select>
+            </div>
+            <div id="worldAxes"></div>
+            <button class="wide" id="focusActor">镜头对准角色</button>
+            <details>
+              <summary>显示设置</summary>
+              <label for="quality">贴图显示精度</label
+              ><select id="quality">
+                <option value="1024">流畅 · 1K</option>
+                <option value="2048">精细 · 2K</option>
+                <option value="4096">原始 · 最高 4K</option>
+              </select>
+              <p>切换后会重新载入当前场景。</p>
+            </details>
+          </section>
+          <section id="pane-library" hidden>
+            <h2>本机存档</h2>
+            <label for="slotName">名称</label
+            ><input
+              id="slotName"
+              type="text"
+              maxlength="40"
+              placeholder="输入场景或动作名称"
+              autocomplete="off"
+            />
+            <div class="row">
+              <button class="primary" id="saveScene">保存场景</button
+              ><button id="saveAction">保存角色动作</button>
+            </div>
+            <p>
+              场景保存所有角色、动作进度、位置和镜头。有关键帧时会保存整段自编动作，可套用到同模型的其他角色。
+            </p>
+            <label for="savedScenes">已存场景</label>
+            <div class="row">
+              <select id="savedScenes"></select
+              ><button id="loadScene">读取</button>
+            </div>
+            <label for="savedActions">当前角色的已存动作</label>
+            <div class="row">
+              <select id="savedActions"></select
+              ><button id="loadAction">应用</button>
+            </div>
+          </section>
+        </div>
+      </aside>
+    </main>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./boot.js"></script>
+  </body>
+</html>
