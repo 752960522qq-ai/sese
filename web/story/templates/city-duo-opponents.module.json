@@ -1,0 +1,9 @@
+{
+  "type":"sese-encounter-module","version":1,"id":"demo.two-guests","title":"三人站位联调",
+  "goal":"first","danger":85,"background":0.55,"lead":{"id":"lead","model":"zhenfu","label":"甄芙"},
+  "opponents":[{"id":"guestA","model":"leon","label":"对手甲","sensitivity":1.08},{"id":"guestB","model":"zhenfu","label":"对手乙","defense":1.12}],
+  "poses":[{"name":"平衡位","self":1,"other":1,"file":"cast-three.sese.json","seconds":6,
+    "events":[{"at":3,"delta":{"lead":0.25,"guestA":1,"guestB":0.5}}]},
+    {"name":"守势位","self":0.74,"other":0.84,"file":"cast-three.sese.json","seconds":6}],
+  "rewards":{"win":20,"great":35,"lose":-5}
+}

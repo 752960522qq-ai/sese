@@ -9,7 +9,7 @@ out="${1:-build/shell}"
 mkdir -p "$out/classes" "$out/dex"
 "$tools/aapt2" compile --dir app/src/main/res -o "$out/res.zip"
 "$tools/aapt2" link -I "$api" --manifest app/src/main/AndroidManifest.xml -o "$out/resources.apk" "$out/res.zip"
-javac -source 8 -target 8 -bootclasspath "$api" -d "$out/classes" app/src/main/java/studio/sese/pose/StudioActivity.java
+javac -source 8 -target 8 -bootclasspath "$api" -d "$out/classes" app/src/main/java/studio/sese/pose/*.java
 (cd "$out/classes" && jar cf ../classes.jar .)
 "$tools/d8" --release --min-api 28 --lib "$api" --output "$out/dex" "$out/classes.jar"
 cp "$out/resources.apk" "$out/shell.apk"

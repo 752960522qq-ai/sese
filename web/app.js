@@ -4,6 +4,7 @@ import { Stage } from './stage.js';
 import { loadSoundBank, SoundTrack } from './sounds.js';
 import { exportCombination, readCombination, readBrowserFile } from './scene-file.js';
 import * as db from './storage.js';
+import {mountStory} from './story/editor.js';
 
 const $ = (id) => document.getElementById(id),
   copy = (value) => JSON.parse(JSON.stringify(value));
@@ -836,6 +837,7 @@ function joystick() {
     'ShiftRight'
   ];
   window.addEventListener('keydown', (e) => {
+    if (!$('storyDesk').hidden) return;
     if (
       mode !== 'walk' ||
       e.target.matches('input,select,textarea') ||
@@ -886,7 +888,7 @@ function gait(a, dt) {
 }
 function loop(ms) {
   requestAnimationFrame(loop);
-  if (!stage || contextLost || document.hidden) {
+  if (!stage || contextLost || document.hidden || !$('storyDesk').hidden) {
     lastFrame = 0;
     return;
   }
@@ -925,6 +927,30 @@ function bind() {
   bindFace();
   bindSound();
   bindFiles();
+  const story = mountStory({
+    notify, ready: () => !!chosen() && !locked,
+    pause: () => { resetStick(); pauseAllAudio(); },
+    snapshot: () => {
+      const result = sceneData();
+      if (mode === 'walk') {
+        const lead = result.actors.find(a => a.id === 'lead');
+        lead.keys = [{ ...actors.get('lead').capture(), t: 0 }];
+      }
+      for (const actor of result.actors) {
+        if (actor.keys.length) {
+          actor.clip = '@keys'; actor.time = 0; actor.dir = 1; actor.offsets = {};
+          actor.p = [...actor.keys[0].p]; actor.yaw = actor.keys[0].yaw;
+        }
+      }
+      return result;
+    },
+    restore: async (scene) => {
+      if (locked) throw Error('舞台正在加载');
+      pauseAllAudio();
+      await restoreScene(scene);
+      setPane('motion'); panel(true);
+    }
+  });
   joystick();
   $('walk').onclick = () => setMode('walk');
   $('pose').onclick = $('editPose').onclick = () => {
@@ -1013,6 +1039,7 @@ function bind() {
     location.reload();
   });
   window.studioBack = () => {
+    if (story.back()) return true;
     if (pane !== 'motion' && !$('panel').hidden) {
       setPane('motion');
       return true;

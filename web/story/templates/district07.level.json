@@ -1,0 +1,71 @@
+{
+  "type": "sese-story-level",
+  "version": 1,
+  "id": "city.district07",
+  "title": "第七区碰面",
+  "city": "hero13-v23",
+  "spawn": [
+    140.77,
+    16.7,
+    -654
+  ],
+  "start": "message",
+  "nodes": {
+    "message": {
+      "kind": "dialogue",
+      "speaker": "甄芙",
+      "text": "约好的地方在东风汽车销售中心。沿斑马线往北走，到入口碰面。",
+      "next": "arrive"
+    },
+    "arrive": {
+      "kind": "walk",
+      "label": "沿人行通道前往销售中心入口",
+      "position": [
+        140.77,
+        16.73,
+        -667
+      ],
+      "radius": 3,
+      "next": "choice"
+    },
+    "choice": {
+      "kind": "dialogue",
+      "speaker": "接待员",
+      "text": "你来了。现在开始，还是先在街边休息一会儿？",
+      "choices": [
+        {
+          "label": "开始对局",
+          "next": "round"
+        },
+        {
+          "label": "今天到这里",
+          "next": "leave"
+        }
+      ]
+    },
+    "round": {
+      "kind": "encounter",
+      "label": "节奏对局",
+      "danger": 85,
+      "win": "finish",
+      "great": "great",
+      "rewards": {
+        "win": 20,
+        "great": 35,
+        "lose": -5
+      }
+    },
+    "finish": {
+      "kind": "end",
+      "text": "本次会面顺利结束。"
+    },
+    "great": {
+      "kind": "end",
+      "text": "双方同时抵达终点。甄芙拿到了额外的约定奖励。"
+    },
+    "leave": {
+      "kind": "end",
+      "text": "甄芙把下一次会面的时间记进了手记。"
+    }
+  }
+}

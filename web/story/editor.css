@@ -1,0 +1,249 @@
+#storyDesk {
+  position: fixed;
+  z-index: 8;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #142124;
+  color: var(--text);
+}
+.storybar,
+.storytools,
+.storyrow,
+.storybuttons {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.storyrow,
+.storybuttons {
+  flex-wrap: wrap;
+}
+.storybar {
+  padding: 8px max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--line);
+  min-height: 47px;
+  flex: none;
+}
+.storytools {
+  margin-left: auto;
+}
+#draftState {
+  color: var(--muted);
+  font-size: 11px;
+}
+.storybody {
+  display: grid;
+  grid-template-columns: clamp(150px, 24vw, 285px) minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
+}
+.storyrail,
+#storyForm {
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+}
+.storyrail {
+  border-right: 1px solid var(--line);
+  background: #19292b;
+}
+.storyrail > select,
+.storyrail > label {
+  width: 100%;
+  display: block;
+}
+.storyrail > label,
+.storyfield > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.storyrail > select {
+  margin: 4px 0 8px;
+}
+.storyrail h2 {
+  margin: 18px 0 7px;
+}
+#storyNodes {
+  display: grid;
+  gap: 4px;
+}
+#storyNodes button {
+  text-align: left;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  overflow-wrap: anywhere;
+}
+#storyNodes button span,
+#storyNodes button small {
+  display: block;
+}
+#storyNodes button small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  margin-top: 2px;
+}
+#storyNodes button[aria-current='true'] {
+  background: #263a36;
+  border-color: #73926b;
+}
+#storyForm {
+  width: 100%;
+  max-width: 1000px;
+  margin-inline: auto;
+  padding: 16px clamp(12px, 3.2vw, 38px) 50px;
+}
+#storyForm h2 {
+  font-size: 20px;
+  margin: 0 0 12px;
+}
+#storyForm h3 {
+  font-size: 15px;
+  margin: 12px 0 6px;
+}
+#storyForm details {
+  margin: 10px 0;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+#storyForm summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+#storyForm details[open] > summary {
+  margin-bottom: 9px;
+}
+.storyfield {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+  min-width: 0;
+}
+.storyfield input,
+.storyfield select,
+.storyfield textarea {
+  min-width: 0;
+  width: 100%;
+}
+.storyfield textarea {
+  font: inherit;
+  background: var(--control);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 10px;
+  resize: vertical;
+  min-height: 62px;
+  user-select: text;
+}
+.storygrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+  gap: 0 10px;
+  align-items: end;
+}
+.storysection {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 13px;
+  padding-bottom: 12px;
+}
+#storyMessage {
+  flex: none;
+  white-space: pre-wrap;
+  font-size: 12px;
+  background: #243c33;
+  padding: 7px 14px;
+  max-height: 25%;
+  overflow: auto;
+}
+#storyMessage:empty {
+  display: none;
+}
+#binding {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  left: 8px;
+  bottom: 9px;
+  padding: 6px;
+  border-radius: 8px;
+  background: #152426ef;
+}
+#binding span {
+  max-width: 24vw;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+#storyDialog {
+  background: #203331;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  max-width: min(440px, 88vw);
+}
+#storyDialog::backdrop {
+  background: #071014a8;
+}
+#toast {
+  z-index: 15;
+}
+@media (max-width: 700px) {
+  .storybar {
+    gap: 4px;
+    padding: 4px 6px;
+  }
+  .storybar h1 {
+    font-size: 14px;
+  }
+  .storybar button,
+  .storyrail button,
+  .header-right button {
+    padding: 4px 6px;
+  }
+  .storytools {
+    gap: 3px;
+  }
+  #draftState {
+    display: none;
+  }
+  .storyrail {
+    padding: 9px;
+  }
+  .storybody {
+    grid-template-columns: clamp(115px, 26vw, 150px) minmax(0, 1fr);
+  }
+  header {
+    gap: 5px;
+  }
+  .header-right {
+    gap: 3px;
+  }
+  #storyForm {
+    padding: 10px 12px 35px;
+  }
+}
+@media (max-width: 480px) {
+  .storybar {
+    flex-wrap: wrap;
+  }
+  .storytools {
+    margin-left: 0;
+  }
+  .storybody {
+    grid-template-columns: 115px minmax(0, 1fr);
+  }
+  .storygrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+#storyDesk[aria-busy='true'] .storybody,
+#storyDesk[aria-busy='true'] .storybar {
+  pointer-events: none;
+}

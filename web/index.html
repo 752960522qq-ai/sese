@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#122124" />
     <title>姿态排练室</title>
     <link rel="stylesheet" href="./studio.css" />
+    <link rel="stylesheet" href="./story/editor.css" />
   </head>
   <body>
     <header>
@@ -21,7 +22,7 @@
         ><button id="pose" aria-pressed="false">摆姿</button>
       </div>
       <div class="header-right">
-        <button id="group" aria-pressed="false">多人模式</button><button id="openSaves">存档</button
+        <button id="openStory">剧情制作</button><button id="group" aria-pressed="false">多人模式</button><button id="openSaves">存档</button
         ><button id="togglePanel" aria-expanded="true">收起面板</button>
       </div>
     </header>
@@ -37,6 +38,7 @@
           <div class="ring"></div>
           <div id="knob"></div>
         </div>
+        <div id="binding" hidden><span></span><button class="primary" id="writeMotion">写回剧情</button><button id="leaveMotion">取消编排</button></div>
         <div id="stageHint">单指旋转　双指平移 / 缩放</div>
         <div id="busy" aria-live="polite">
           <div class="loader"></div>
@@ -245,6 +247,7 @@
               <select id="savedScenes"></select
               ><button id="loadScene">读取</button>
             </div>
+            <button class="wide" id="exportGameAction">导出当前角色动作</button>
             <label for="savedActions">当前角色的已存动作</label>
             <div class="row">
               <select id="savedActions"></select
@@ -254,6 +257,25 @@
         </div>
       </aside>
     </main>
+    <section id="storyDesk" hidden aria-label="剧情制作">
+      <div class="storybar">
+        <button id="closeStory">返回舞台</button><h1>剧情制作</h1><output id="draftState" aria-live="polite"></output>
+        <div class="storytools">
+          <button id="importStory">导入模板或动作</button><input id="storyFiles" type="file" accept=".json,.zip,.glb" multiple hidden />
+          <button id="exportStory" class="primary">导出主游戏文件</button><button id="launchCity" hidden>打开主游戏</button>
+        </div>
+      </div>
+      <div class="storybody">
+        <aside class="storyrail">
+          <label for="storyLevel">剧情关卡</label><select id="storyLevel"></select>
+          <div class="storyrow"><button id="newLevel">新建关卡</button><button id="levelSettings">关卡设置</button></div>
+          <h2>剧情节点</h2><nav id="storyNodes" aria-label="剧情节点"></nav>
+        </aside>
+        <article id="storyForm" aria-label="节点编辑"></article>
+      </div>
+      <div id="storyMessage" role="status" aria-live="polite"></div>
+    </section>
+    <dialog id="storyDialog"><form method="dialog"><h2></h2><p></p><div class="storyrow"><button value="cancel">取消</button><button class="primary" value="ok">确认</button></div></form></dialog>
     <div id="toast" role="status" aria-live="polite"></div>
     <script type="module" src="./boot.js"></script>
   </body>

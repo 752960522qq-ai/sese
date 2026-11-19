@@ -4,6 +4,9 @@ cd "$(dirname "$0")/.."
 test -f app/src/main/assets/models/leon/actor.gltf
 test -f app/src/main/assets/models/zhenfu/actor.gltf
 test -f app/src/main/assets/audio/cues.json || { echo 'Run tools/prepare_audio.py with the reviewed sound ZIP first.' >&2; exit 1; }
+archive_lib=node_modules/three/examples/jsm/libs/fflate.module.js
+if [[ -f "$archive_lib" ]]; then cp "$archive_lib" app/src/main/assets/vendor/fflate.module.js; fi
+test -s app/src/main/assets/vendor/fflate.module.js || { echo 'Install the pinned three dependency for the ZIP reader.' >&2; exit 1; }
 node tools/build-expressions.mjs
 cp -R web/. app/src/main/assets/
 bash tools/android-shell.sh

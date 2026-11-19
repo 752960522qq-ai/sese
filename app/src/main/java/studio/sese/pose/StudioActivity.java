@@ -30,6 +30,7 @@ public final class StudioActivity extends Activity {
     private static final int MAX_DOCUMENT = 24 * 1024 * 1024;
     private static final String IMPORT_PATH = "/__imported_scene/";
     private WebView studio;
+    private StoryDocuments story;
     private final ExecutorService fileIO = Executors.newSingleThreadExecutor();
     private final AtomicReference<ImportedFile> imported = new AtomicReference<>();
     private volatile boolean pickingFile;
@@ -57,11 +58,14 @@ public final class StudioActivity extends Activity {
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setAllowFileAccess(false);
-        settings.setAllowContentAccess(false);
+        settings.setAllowContentAccess(true);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
         settings.setTextZoom(100);
         studio.setWebViewClient(new PackagedAssets());
+        story = new StoryDocuments(this, fileIO);
+        studio.setWebChromeClient(story);
+        studio.addJavascriptInterface(story, "SeseStoryFiles");
         studio.addJavascriptInterface(new SceneFiles(), "SeseSceneFiles");
         setContentView(studio);
         studio.loadUrl("https://" + HOST + "/index.html");
@@ -74,7 +78,7 @@ public final class StudioActivity extends Activity {
 
     @Override public void onPause() {
         if (studio != null) {
-            studio.evaluateJavascript("if (window.studioPauseAudio) window.studioPauseAudio()", null);
+            studio.evaluateJavascript("window.studioPauseAudio?.();window.storyFlush?.()", null);
             studio.onPause();
         }
         super.onPause();
@@ -94,6 +98,7 @@ public final class StudioActivity extends Activity {
     }
     @Override public void onDestroy() {
         imported.set(null);
+        if (story != null) story.release();
         fileIO.shutdown();
         if (studio != null) {
             studio.destroy();
@@ -160,6 +165,7 @@ public final class StudioActivity extends Activity {
 
     @Override public void onActivityResult(int request, int result, Intent response) {
         super.onActivityResult(request, result, response);
+        if (story != null && story.result(request, result, response)) return;
         if (request != SAVE_DOCUMENT && request != OPEN_DOCUMENT) return;
         final byte[] payload = outgoing;
         outgoing = null;
@@ -206,7 +212,7 @@ public final class StudioActivity extends Activity {
     private void announce(String message) {
         evaluate("if (window.studioFileNotice) window.studioFileNotice(" + JSONObject.quote(message) + ")");
     }
-    private void evaluate(String javascript) {
+    void evaluate(String javascript) {
         runOnUiThread(new Runnable() {
             @Override public void run() {
                 if (studio != null && !isDestroyed()) studio.evaluateJavascript(javascript, null);

@@ -1,0 +1,5 @@
+{"type":"sese-pose-combination","version":1,"name":"三人站位联调","scene":{"format":1,"selected":"lead","group":true,"mode":"pose","camera":{"p":[0,1.85,5.7],"target":[0,1,0]},"actors":[
+{"id":"lead","type":"zhenfu","label":"甄芙","p":[0,0,0.38],"yaw":24,"clip":"Idle","time":0,"rate":1,"dir":1,"playing":true,"offsets":{},"keys":[]},
+{"id":"guestA","type":"leon","label":"对手甲","p":[-1.26,0,-0.38],"yaw":45,"clip":"@rest","time":0,"rate":1,"dir":1,"playing":false,"offsets":{},"keys":[]},
+{"id":"guestB","type":"zhenfu","label":"对手乙","p":[1.30,0,-0.43],"yaw":-36,"clip":"Idle","time":0,"rate":0.9,"dir":1,"playing":true,"offsets":{},"keys":[]}
+]}}
