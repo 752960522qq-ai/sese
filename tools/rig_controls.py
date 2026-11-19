@@ -81,7 +81,7 @@ def add_controls(folder, actor):
     skin = doc['skins'][0]
     base_count = cfg['joint_count']
     if len(skin['joints']) == base_count + len(names):
-        if [doc['nodes'][j]['name'] for j in skin['joints'][-3:]] != names or not (folder/'controls.bin').is_file():
+        if [doc['nodes'][j]['name'] for j in skin['joints'][-3:]] != names or not all((folder/b['uri']).is_file() for b in doc['buffers']) or doc['accessors'][skin['inverseBindMatrices']]['count'] != len(skin['joints']):
             raise ValueError('Incomplete or incompatible extended rig: ' + actor)
         return
     if len(skin['joints']) != base_count:

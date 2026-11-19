@@ -994,6 +994,7 @@ function bind() {
   $('actor').onchange = (e) => chooseActor(e.target.value);
   $('addZ').onclick = () => add('zhenfu');
   $('addL').onclick = () => add('leon');
+  $('addSuit').onclick = () => add('leonSuit');
   $('remove').onclick = removeActor;
   $('clip').onchange = (e) => selectClip(e.target.value);
   $('time').oninput = (e) => seek(Number(e.target.value));

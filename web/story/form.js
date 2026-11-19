@@ -209,6 +209,7 @@ export function renderForm(parent, c) {
         prop(row, r, role, 'model', '角色模型', {
           values: [
             ['leon', '里昂'],
+            ['leonSuit', '西装里昂'],
             ['zhenfu', '甄芙']
           ]
         });
@@ -405,6 +406,7 @@ export function renderForm(parent, c) {
   );
   if (node.kind === 'dialogue') {
     prop(f, level, node, 'speaker', '说话人', { optional: true });
+    input(f,'现场陈总',node.companion?'1':'0',v=>{node.companion=v==='1';changed();},{values:[['0','不出场'],['1','出场'] ]});
     prop(f, level, node, 'text', '对白内容', { textarea: true });
     if (node.choices) {
       for (const [i, ch] of node.choices.entries()) {
@@ -430,6 +432,64 @@ export function renderForm(parent, c) {
         node.choices.push({ label: '另一个选择', next: node.choices[0].next });
         changed(level, true);
       });
+  } else if (['drive','phone','interact','scene','slot'].includes(node.kind)) {
+    prop(f,level,node,'label','任务标题');
+    if (node.kind === 'drive') {
+      vector(f,level,node,'car','车辆起点');
+      prop(f,level,node,'heading','车头朝向（度，向东为 90）',{number:true});
+      prop(f,level,node,'passenger','同行乘客',{optional:true});
+      node.route.forEach((p,i)=>{
+        const g=section(f);
+        caption(g,'路标 '+(i+1));
+        prop(g,level,p,'label','路标说明');
+        vector(g,level,p,'position','路标坐标');
+        prop(g,level,p,'radius','路标半径（米）',{number:true,min:.5,max:100});
+        if(node.route.length>1)button(g,'移除此路标',()=>{node.route.splice(i,1);changed(level,true);});
+      });
+      button(f,'增加路标',()=>{node.route.push({label:'下一路标',position:[...node.route.at(-1).position],radius:5});changed(level,true);});
+    } else if (node.kind === 'phone') {
+      prop(f,level,node,'contact','联系人');
+      node.messages.forEach((m,i)=>{
+        const g=section(f);
+        caption(g,'消息 '+(i+1));
+        prop(g,level,m,'from','发信人');
+        prop(g,level,m,'text','消息内容',{textarea:true});
+        if(node.messages.length>1)button(g,'移除这条消息',()=>{node.messages.splice(i,1);changed(level,true);});
+      });
+      button(f,'增加消息',()=>{node.messages.push({from:node.contact,text:'输入消息'});changed(level,true);});
+    } else if (node.kind === 'interact' || node.kind === 'scene') {
+      vector(f,level,node,'position','场景坐标');
+      prop(f,level,node,'verb','操作按钮');
+      prop(f,level,node,'text','场景文字',{textarea:true});
+      if(node.kind === 'scene')
+        prop(f,level,node,'timeOfDay','时段',{values:[['morning','上午'],['afternoon','下午'],['dusk','黄昏'],['night','夜间']]});
+      else {
+        prop(f,level,node,'radius','交互半径（米）',{number:true,min:.5,max:100});
+        node.fields.forEach((row,i)=>{
+          const g=group(f);
+          prop(g,level,row,'label','栏目名');
+          prop(g,level,row,'value','栏目内容');
+          button(g,'移除栏目',()=>{node.fields.splice(i,1);changed(level,true);});
+        });
+        button(f,'增加栏目',()=>{node.fields.push({label:'栏目',value:'内容'});changed(level,true);});
+      }
+    } else {
+      prop(f,level,node,'module','接口模块文件名',{commit:true,draw:true});
+      prop(f,level,node,'file','备用动作文件名',{optional:true,commit:true,draw:true});
+      f.append(el('p','','主游戏优先打开同名模块。只提供备用动作时会直接播放。接口留空时可继续剧情。'));
+      const mod=resolveFile(files,node.module);
+      if (mod?.kind==='module') editModule(parent,mod,mod.doc);
+      else button(f,'创建接口模块',()=>{
+        const m=freshModule(ui.node);
+        m.title=node.label;
+        if(L.id==='tomorrow.chapter01' && ui.node==='hotel_slot')
+          Object.assign(m.opponents[0],{label:'陈总',model:'leonSuit'});
+        c.put(makeRecord(node.module,m));
+        ui.pose=0;
+        changed(level,true);
+      },true);
+    }
+    targets(f,node,'next','下一节点');
   } else if (node.kind === 'walk') {
     prop(f, level, node, 'label', '目标说明');
     vector(f, level, node, 'position', '目的地');

@@ -4,13 +4,13 @@
 
 ## 本地构建
 
-需要 JDK 17、Android SDK Platform 35、Android Build Tools 35 或更高版本、Python 3、NumPy、SciPy 和 Node.js。将甄芙 R19、R05 职业装 ZIP 和里昂七动作版 GLB 放在本机，安装锁定版本的 Three.js，并从本仓库根目录运行以下命令。
+需要 JDK 17、Android SDK Platform 35、Android Build Tools 35 或更高版本、Python 3、NumPy、SciPy 和 Node.js。将甄芙 R19、R06 职业装 ZIP、里昂七动作底包，以及素体与西装两份最新里昂 GLB 放在本机，安装锁定版本的 Three.js，并从本仓库根目录运行以下命令。
 
 ```sh
 npm install --ignore-scripts
 python3 tools/prepare_assets.py --zhenfu /path/to/Zhenfu_R19.glb --leon /path/to/Leon_Kennedy_7_Motions.glb
 python3 tools/prepare_audio.py /path/to/Game_Audio_Cues.zip
-POSE_WARDROBE=/path/to/Zhenfu_Officewear_R05_Preview.zip bash tools/build-apk.sh
+POSE_LEON_BASE=/path/to/Leon_Base_Idle_Walk_Run.glb POSE_LEON_SUIT=/path/to/Leon_Suit_Idle_Walk_Run.glb POSE_WARDROBE=/path/to/Zhenfu_Officewear_R06_Preview.zip bash tools/build-apk.sh
 ```
 
 构建结果位于 `build/PoseStudio.apk`。可通过 `POSE_KEYSTORE`、`POSE_KEY_ALIAS` 和 `POSE_KEY_PASS` 指定自己的签名，缺省使用本机测试签名。模型和纹理随 APK 离线提供，应用无需网络权限。存档保存在应用私有存储。
@@ -27,7 +27,7 @@ POSE_WARDROBE=/path/to/Zhenfu_Officewear_R05_Preview.zip bash tools/build-apk.sh
 - 「存档」中的导出搭配生成 `.sese.json` 文件。将它导入另一份同版应用，可恢复场上角色、动作关键帧、表情进度、声音时间轴、位置和镜头。
 - 存档页支持命名保存与读取。使用相同名称会更新该存档。显示精度可在位置页选择 1K、2K 或原始最高 4K，APK 保存原始纹理和网格。
 
-现有安装包也可用于恢复编译所需的素材。把其中的 `assets/models/`、`assets/vendor/`、`assets/audio/` 及 `assets/catalog.json` 复制至 `app/src/main/assets/` 后，安装上方列出的 Three.js 依赖，再执行构建脚本。1.2.1 安装包已包含两个扩展骨架和甄芙的 R05 服装数据。
+现有安装包也可用于恢复编译所需的素材。把其中的 `assets/models/`、`assets/vendor/`、`assets/audio/` 及 `assets/catalog.json` 复制至 `app/src/main/assets/` 后，安装上方列出的 Three.js 依赖，再执行构建脚本。1.3.0 安装包已包含两版里昂、两个素体的扩展骨架和甄芙 R06 职业装。
 
 构建时会从 R19 绑定生成独立的 `models/zhenfu/expressions.glb`。表情轨道只驱动脸部。眨眼和胸廓呼吸各有独立片段。所有片段以静止参考姿态为首帧，可在其他引擎中按同名骨骼映射，并以首帧作为叠加参考。
 
@@ -38,4 +38,10 @@ POSE_WARDROBE=/path/to/Zhenfu_Officewear_R05_Preview.zip bash tools/build-apk.sh
 
 在人物动作节点选择「在舞台编排」，给当前角色或多人搭配录制关键帧，再点「写回剧情」。已有舞台编排也可直接写入。对局可分别编辑每位对手的初始值和增长参数。用「按演员表编排」载入该姿势的人物，写回时保留模块分配的角色 ID。
 
-点「导出主游戏文件」并选择一个可写目录。应用在其中创建子目录，写入关卡及它引用的模块和动作。在《甄芙 · 城市篇》0.1.1 的「关卡与动作」点「导入文件」，一次选中该子目录中的文件。关卡设置还可导出模板 ZIP，方便再次编辑或分享。「存档」中的「导出当前角色动作」可单独生成 `.action.json` 文件。
+点「导出主游戏文件」并选择一个可写目录。应用在其中创建子目录，写入关卡及它引用的模块和动作。在《甄芙 · 城市篇》0.2.0 的「关卡与动作」点「导入文件」，一次选中该子目录中的文件。关卡设置还可导出模板 ZIP，方便再次编辑或分享。「存档」中的「导出当前角色动作」可单独生成 `.action.json` 文件。
+
+## 《明天就订车》第一章
+
+在「剧情制作」选择第一章。驾驶节点可编辑起点、车头朝向、乘客和有序路标。手机节点可直接修改发信人与消息。场景、地点交互和订单栏目均可编辑。
+
+在 `hotel_slot` 节点点「创建接口模块」，再点「按演员表编排」。默认演员是甄芙和西装里昂（陈总）。也可以在演员表中选择素体里昂。编排完成后点「写回剧情」，在「关卡设置」导出模板 ZIP，即可将本章、模块和引用动作一起导入主游戏。

@@ -17,6 +17,7 @@ import { readFiles, exportFiles } from './transfer.js';
 import { el, renderForm } from './form.js';
 
 const templates = [
+  'chapter01.level.json',
   'first-meeting.level.json',
   'district07.level.json',
   'city-duo-opponents.module.json',
@@ -31,7 +32,7 @@ export function mountStory(stage) {
     messageBox = $('storyMessage'),
     panel = $('storyForm'),
     dialog = $('storyDialog');
-  const ui = { level: 'first-meeting.level.json', node: 'cue', pose: 0, view: 'node' };
+  const ui = { level: 'chapter01.level.json', node: 'opening', pose: 0, view: 'node' };
   let started = null,
     binding = null,
     saving = Promise.resolve(),
@@ -119,9 +120,10 @@ export function mountStory(stage) {
       const draft = await loadDraft();
       for (const r of draft.files) files.set(fileKey(r.name), r);
       if (draft.ui) Object.assign(ui, draft.ui);
-      if (!files.size) {
+      const missing = templates.filter(name => !files.has(fileKey(name)));
+      if (missing.length) {
         const records = await Promise.all(
-          templates.map(async (name) => {
+          missing.map(async (name) => {
             const res = await fetch('./story/templates/' + name);
             if (!res.ok) throw Error('无法载入模板 ' + name);
             return makeRecord(name, await res.json());

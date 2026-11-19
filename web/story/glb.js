@@ -32,7 +32,7 @@ export async function inspectGlb(file) {
   const data = await file.arrayBuffer(),
     { json } = pieces(data);
   skeletons ??= Promise.all(
-    ['zhenfu', 'leon'].map(async (type) => {
+    ['zhenfu', 'leon', 'leonSuit'].map(async (type) => {
       const spec = await (await fetch('./models/' + type + '/actor.gltf')).json();
       return {
         type,

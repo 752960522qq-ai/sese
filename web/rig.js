@@ -5,7 +5,7 @@ import { attachMorphs } from './morph.js';
 import { disposeWardrobe } from './wardrobe.js';
 import { loadExpressions, ExpressionLayer } from './expressions.js';
 
-export const characterNames = { zhenfu: '甄芙', leon: '里昂' };
+export const characterNames = { zhenfu: '甄芙', leon: '里昂', leonSuit: '西装里昂' };
 export const clipNames = {
   Idle: '待机',
   Walk: '行走',
@@ -55,8 +55,15 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export function sortedJoints(actor) {
   const ordered = [],
     used = new Set();
+  const valve = { Hips:'Pelvis',Spine:'Spine',Spine2:'Spine4',Neck:'Neck1',Head:'Head1' };
+  const limbs = { Shoulder:'Clavicle',Arm:'UpperArm',ForeArm:'Forearm',Hand:'Hand',UpLeg:'Thigh',Leg:'Calf',Foot:'Foot',ToeBase:'Toe0' };
+  for (const [part, bone] of Object.entries(limbs)) {
+    valve['Left'+part] = 'L_'+bone;
+    valve['Right'+part] = 'R_'+bone;
+  }
   for (const [label, z, l] of aliases) {
     const name = Array.from(actor.bones.keys()).find((n) =>
+      actor.type === 'leonSuit' ? n.replace(/^ValveBiped\.?Bip01_/, '').replace(/_0[0-9]+$/, '') === valve[z] :
       actor.type === 'leon'
         ? n === l
         : n.toLowerCase().replace(/^mixamorig:?/, '') === z.toLowerCase()
@@ -82,7 +89,7 @@ async function template(type, progress) {
       res = await fetch(base + (type === 'zhenfu' ? 'dressed.gltf' : 'actor.gltf'));
     if (!res.ok) throw Error('无法读取角色模型');
     const spec = await res.json(),
-      sizes = new Map(spec.images.map((i) => [i.uri, i.extras.studioSize]));
+      sizes = new Map(spec.images.map((i) => [new URL(i.uri, new URL(base, document.baseURI)).href, i.extras.studioSize]));
     const queue = [],
       errors = [];
     let working = 0,
@@ -105,7 +112,7 @@ async function template(type, progress) {
             const result = await fetch(url);
             if (!result.ok) throw Error('贴图读取失败');
             const blob = await result.blob(),
-              [w, h] = sizes.get(url.split('/').pop());
+              [w, h] = sizes.get(new URL(url, document.baseURI).href);
             const requested = Number(localStorage.getItem('pose.texture.limit')) || 1024;
             const limit = [1024, 2048, 4096].includes(requested) ? requested : 1024;
             const ratio = Math.min(1, limit / Math.max(w, h));
@@ -152,7 +159,7 @@ async function template(type, progress) {
     manager.addHandler(/\.(png|jpg)$/i, maps);
     const gltf = await new GLTFLoader(manager).parseAsync(spec, base);
     if (errors.length) throw errors[0];
-    if (type === 'leon') useOriginalWeights(gltf.scene);
+    if (type !== 'zhenfu') useOriginalWeights(gltf.scene);
     gltf.scene.traverse((n) => {
       if (n.isSkinnedMesh) n.frustumCulled = false;
     });
@@ -195,7 +202,7 @@ export function fresh(type, id, label, x = 0) {
     label,
     p: [x, 0, 0],
     yaw: 0,
-    clip: type === 'zhenfu' ? 'Idle' : '08',
+    clip: 'Idle',
     time: 0,
     dir: 1,
     playing: false,

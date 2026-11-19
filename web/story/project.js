@@ -3,6 +3,7 @@ import { documentLevel, documentModule, actionScene } from './runtime-format.js'
 export const kinds = {
   dialogue: '对白',
   walk: '步行目标',
+  drive: '驾驶路线', phone: '手机消息', interact: '地点交互', scene: '场景与时间', slot: '可选模块接口',
   motion: '人物动作',
   encounter: '对局',
   end: '结尾'
@@ -108,6 +109,11 @@ export function insertNode(level, anchor, kind, edge = 0) {
   const defaults = {
     dialogue: { speaker: '甄芙', text: '输入对白', next },
     walk: { label: '前往目的地', position: [...level.spawn], radius: 3, next },
+    drive: { label:'试驾', car:[...level.spawn], heading:90, route:[{label:'停车',position:[...level.spawn],radius:5}], next },
+    phone: { label:'手机', contact:'陈总', messages:[{from:'甄芙',text:'输入消息'}], next },
+    interact: { label:'现场核查', position:[...level.spawn], radius:3, verb:'查看', text:'输入内容', fields:[], next },
+    scene: { label:'进入场景', position:[...level.spawn], timeOfDay:'afternoon', text:'输入场景描述', verb:'继续', next },
+    slot: { label:'自定义环节', module:id+'.module.json', next },
     motion: { file: '', next },
     encounter: { label: '新对局', win: next },
     end: { text: '本章结束。' }
@@ -162,6 +168,14 @@ export function gameFiles(files, root) {
       documentLevel(doc);
       for (const [id, n] of Object.entries(doc.nodes)) {
         if (n.kind === 'motion') motion(n.file, id);
+        if (n.kind === 'slot') {
+          const mod=resolveFile(files,n.module);
+          if (mod) {
+            if (mod.kind!=='module') throw Error(id+' 的接口文件不是对局模块');
+            add(mod);
+          }
+          if (n.file && resolveFile(files,n.file)) motion(n.file,id);
+        }
         if (n.kind === 'encounter') {
           if (n.module) {
             const r = resolveFile(files, n.module);

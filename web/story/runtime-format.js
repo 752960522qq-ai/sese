@@ -1,3 +1,4 @@
+import {chapterNode} from './chapter-nodes.js';
 // City Game 0.1.0 v1 document contract. Validate an owned copy when applying game defaults.
 import { readCombination } from '../scene-file.js';
 const BASE_POSES = [
@@ -34,7 +35,7 @@ export function encounter(n) {
     ids.add(a.id);
     a.label ??= i ? '对手 ' + i : '甄芙';
     a.model ??= i ? 'leon' : 'zhenfu';
-    if (!str(a.label, 40) || !['zhenfu', 'leon'].includes(a.model) || (!i && a.model !== 'zhenfu'))
+    if (!str(a.label, 40) || !['zhenfu', 'leon', 'leonSuit'].includes(a.model) || (!i && a.model !== 'zhenfu'))
       fail('模块演员设置无效');
     for (const [key, value, lo, hi] of [
       ['start', 0, 0, 99.99],
@@ -167,7 +168,7 @@ export function documentLevel(data) {
         if (!str(node.text, 4000)) fail(key + ' 缺少结尾');
         break;
       default:
-        fail(key + ' 包含未知节点类型');
+        if (!chapterNode(node, link)) fail(key + ' 包含未知节点类型');
     }
   }
   const seen = new Set([data.start]),
@@ -202,7 +203,7 @@ export function actionScene(doc, file) {
             p: [0, 0, 0],
             yaw: 0,
             id: 'lead',
-            label: a.type === 'leon' ? '里昂' : '甄芙',
+            label: a.type === 'leonSuit' ? '西装里昂' : a.type === 'leon' ? '里昂' : '甄芙',
             rate: 1,
             time: 0,
             dir: 1,
@@ -220,7 +221,7 @@ export function actionScene(doc, file) {
   if (new Set(s.actors.map((a) => a.id)).size !== s.actors.length) fail('搭配中有重复角色');
   for (const a of s.actors) {
     if (
-      !['zhenfu', 'leon'].includes(a.type) ||
+      !['zhenfu', 'leon', 'leonSuit'].includes(a.type) ||
       !str(a.id) ||
       !vec(a.p, 3) ||
       !Number.isFinite(a.yaw) ||

@@ -31,17 +31,25 @@ def image_size(data, mime):
             pos += struct.unpack_from('>H', data, pos)[0]
     raise ValueError('Invalid image size')
 
-def split_model(path, name):
+def split_model(path, name, *, fitted=False):
     original = path.read_bytes()
-    digest, count = MODELS[name]
-    if hashlib.sha256(original).hexdigest() != digest:
+    digest = hashlib.sha256(original).hexdigest()
+    if not fitted and digest != MODELS[name][0]:
         raise ValueError(f'{name}: expected the published master GLB {digest}')
     magic, version, total, size, tag = struct.unpack_from('<4sIII4s', original)
     if (magic, version, total, tag) != (b'glTF', 2, len(original), b'JSON'):
         raise ValueError('Invalid GLB')
     doc = json.loads(original[20:20+size])
     binary = memoryview(original)[28+size:]
-    assert len(doc['buffers']) == 1 and len(doc['animations']) == count
+    assert len(doc['buffers']) == 1
+    if fitted:
+        required = {'Idle', 'Walk', 'Run'}
+        if name == 'leon':
+            required.update(('08','09','10','11','12','16','17'))
+        if not required.issubset(a['name'] for a in doc['animations']):
+            raise ValueError(f'{name}: missing fitted animations')
+    elif len(doc['animations']) != MODELS[name][1]:
+        raise ValueError(f'{name}: unexpected master clip count')
     folder = ASSETS / 'models' / name
     folder.mkdir(parents=True, exist_ok=True)
     views = doc['bufferViews']
