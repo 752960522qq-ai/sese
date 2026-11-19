@@ -1,0 +1,38 @@
+{
+  "type": "sese-story-level",
+  "version": 1,
+  "id": "author.first-meeting",
+  "title": "三人模块联调",
+  "city": "hero13-v23",
+  "spawn": [
+    140.77,
+    16.7,
+    -654
+  ],
+  "start": "cue",
+  "nodes": {
+    "cue": {
+      "kind": "dialogue",
+      "speaker": "甄芙",
+      "text": "到入口后，先对一遍走位。",
+      "next": "arrival"
+    },
+    "arrival": {
+      "kind": "motion",
+      "file": "arrival.action.json",
+      "seconds": 1.8,
+      "next": "rehearse"
+    },
+    "rehearse": {
+      "kind": "encounter",
+      "label": "三人站位联调",
+      "module": "city-duo-opponents.module.json",
+      "win": "done",
+      "great": "done"
+    },
+    "done": {
+      "kind": "end",
+      "text": "本次试镜完成。"
+    }
+  }
+}

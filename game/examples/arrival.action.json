@@ -1,0 +1,8 @@
+{
+  "type":"sese-action","version":1,"name":"甄芙 · 到场停步",
+  "actor":{"type":"zhenfu","clip":"@keys","keys":[
+    {"t":0,"p":[0,0,0],"yaw":0,"joints":{},"morph":{}},
+    {"t":1.0,"p":[0,0,0.28],"yaw":14,"joints":{"mixamorigNeck":{"q":[0,0.087156,0,0.996195]}},"morph":{}},
+    {"t":1.8,"p":[0,0,0.28],"yaw":14,"joints":{},"morph":{}}
+  ]}
+}
