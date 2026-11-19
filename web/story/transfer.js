@@ -118,5 +118,5 @@ export async function exportFiles(records, mode, title) {
   const blob = single ? blobFor(records[0]) : await archive(records);
   if (native) return nativeWrite(native, 'single', name, [{ name, blob }]);
   download(name, blob);
-  return single ? '已导出 ' + name : '已导出 ZIP。解压后，在主游戏中一起选择里面的文件。';
+  return single ? '已导出 ' + name : '已导出 ZIP。可在主游戏的「关卡与动作」中直接导入。';
 }
