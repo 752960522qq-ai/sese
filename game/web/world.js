@@ -1,3 +1,4 @@
+import {ShowroomCar} from './vehicle.js';
 import * as T from './vendor/three.module.min.js';
 import {GLTFLoader} from './vendor/loaders/GLTFLoader.js';
 import {OrbitControls} from './vendor/controls/OrbitControls.js';
@@ -23,8 +24,9 @@ export class CityWorld{
     this.camera=new T.PerspectiveCamera(49,1,.08,560);
     this.controls=new OrbitControls(this.camera,canvas);this.controls.enablePan=false;this.controls.minDistance=2.1;this.controls.maxDistance=13;
     this.controls.minPolarAngle=.25;this.controls.maxPolarAngle=Math.PI*.50;this.controls.rotateSpeed=.65;
-    this.scene.add(new T.HemisphereLight(0xfff3e9,0xa6b5bc,1.90));
-    const sun=new T.DirectionalLight(0xffedd6,2.3);sun.position.set(-75,125,70);this.scene.add(sun);
+    this.fill=new T.HemisphereLight(0xfff3e9,0xa6b5bc,1.90);this.scene.add(this.fill);
+    this.car=new ShowroomCar(this);
+    const sun=new T.DirectionalLight(0xffedd6,2.3);this.sun=sun;sun.position.set(-75,125,70);this.scene.add(sun);
     this.tiles=new Map();this.loader=new GLTFLoader();this.ray=new T.Raycaster();this.pos=new T.Vector3();this.lastLoad=new T.Vector3(1e6,0,1e6);this.generation=0;this.showToken=0;
     this.group=new T.Group();this.scene.add(this.group);this.cast=[];this.stepTime=0;this.walking=true;
     const markerMaterial=new T.MeshBasicMaterial({color:0xf2be66,transparent:true,opacity:.9,side:T.DoubleSide,depthWrite:false});
@@ -86,14 +88,14 @@ export class CityWorld{
     }
     return Number.isFinite(best)?best:null;
   }
-  blocked(dx,dz) {
+  blocked(dx,dz,origin=this.pos,clearance=.22) {
     const dist=Math.hypot(dx,dz);
     if(!dist)return false;
-    this.ray.set(point.set(this.pos.x,this.pos.y+.85,this.pos.z),new T.Vector3(dx/dist,0,dz/dist));this.ray.far=dist+.22;
+    this.ray.set(point.set(origin.x,origin.y+.85,origin.z),new T.Vector3(dx/dist,0,dz/dist));this.ray.far=dist+clearance;
     for(const t of this.tiles.values()){
-      if(!t.root||near(t.info.bounds,this.pos.x,this.pos.z)>1)continue;
+      if(!t.root||near(t.info.bounds,origin.x,origin.z)>dist+clearance)continue;
       for(const m of t.solid){const b=m.geometry.boundingBox;
-        if(this.pos.x<b.min.x-1||this.pos.x>b.max.x+1||this.pos.z<b.min.z-1||this.pos.z>b.max.z+1)continue;
+        if(origin.x<b.min.x-dist-clearance||origin.x>b.max.x+dist+clearance||origin.z<b.min.z-dist-clearance||origin.z>b.max.z+dist+clearance)continue;
         if(this.ray.intersectObject(m,false).length)return true;
       }
     }
@@ -128,8 +130,26 @@ export class CityWorld{
     this.hero.face?.advance(dt);this.hero.walk(clip,this.stepTime);
     this.shadow.position.copy(this.pos);this.shadow.position.y+=.028;
   }
+  light(time='afternoon'){
+    const tones={morning:[0xd2e1e9,0xffe7ba,2,2.3],afternoon:[0xc3d6df,0xffedd6,1.9,2.3],
+      dusk:[0xba9f9b,0xffc28d,1.45,1.6],night:[0x394855,0xffd9b0,1.16,.95]};
+    const [sky,tint,fill,sun]=tones[time]||tones.afternoon;
+    this.scene.background.setHex(sky);this.scene.fog.color.setHex(sky);
+    this.fill.intensity=fill;this.sun.color.setHex(tint);this.sun.intensity=sun;
+  }
+  async showCompanion(){
+    if(!this.companion)this.companion=await Actor.create(fresh('leonSuit','chen','陈总'),()=>{});
+    const a=this.companion;this.scene.add(a.root);
+    let x=this.pos.x-1.1,z=this.pos.z-.8;
+    const h=this.grounds(x,z,this.pos.y,.6);
+    if(h===null){x=this.pos.x;z=this.pos.z-1;}
+    a.state.p=[x,h??this.pos.y,z];a.state.yaw=Math.atan2(this.pos.x-x,this.pos.z-z)*180/Math.PI;
+    a.root.visible=true;a.walk('Idle',0);
+    this.hero.state.yaw=a.state.yaw+180;this.hero.walk('Idle',this.stepTime);
+  }
   async clothesTo(c){this.clothes={...c};await Promise.all([this.hero,...this.cast].filter(Boolean).map(a=>dress(a,c)));}
   clearShow(){
+    this.car.hide();if(this.companion)this.companion.root.visible=false;
     this.showToken++;for(const a of this.cast)if(a!==this.hero)release(a);else a.sound?.pause();this.cast=[];this.group.clear();this.walking=true;
     if(this.hero){this.hero.source=this.baseSource;this.hero.state={...this.heroState,p:this.pos.toArray(),yaw:this.walkYaw??180};this.scene.add(this.hero.root);this.hero.face?.restore();this.hero.walk('Idle',this.stepTime);}
     if(this.hero){if(this.hero.face)this.hero.face=new this.hero.face.constructor(this.hero,this.hero.source.expressions);this.hero.root.visible=true;}this.shadow.visible=true;
@@ -140,8 +160,8 @@ export class CityWorld{
     if(record?.kind==='glb'&&which&&!record.clips.some(x=>x.name===which))throw Error('GLB 动作不存在 '+which);
     let states;
     if(record?.kind==='motion')states=record.data.actors;
-    else if(roleList)states=roleList.map((r,i)=>({...fresh(r.model,r.id,r.label,(i-(roleList.length-1)/2)*1.16),clip:r.model==='leon'?'@rest':'Idle',yaw:i%2?-22:22}));
-    else if(guess)states=[fresh(guess.type,'lead',guess.type==='leon'?'里昂':'甄芙')];
+    else if(roleList)states=roleList.map((r,i)=>({...fresh(r.model,r.id,r.label,(i-(roleList.length-1)/2)*1.16),clip:'Idle',yaw:i%2?-22:22}));
+    else if(guess)states=[fresh(guess.type,'lead',guess.type==='leonSuit'?'西装里昂':guess.type==='leon'?'里昂':'甄芙')];
     else states=[fresh('zhenfu','lead','甄芙')];
     if(roleList&&record?.kind==='motion'&&roleList.some(r=>!states.some(a=>a.id===r.id&&a.type===r.model)))throw Error('模块角色 ID 或模型与动作演员表不一致');
     try{

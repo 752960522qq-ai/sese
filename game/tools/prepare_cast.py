@@ -2,6 +2,7 @@
 import argparse
 import io
 import json
+import posixpath
 import sys
 import zipfile
 from pathlib import Path
@@ -36,11 +37,19 @@ def main():
         for n in studio.namelist():
             if n.startswith(('assets/vendor/','assets/audio/')) and not n.endswith('/'):
                 p=root/n[7:];p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(studio.read(n))
-        for kind in ('zhenfu','leon'):
+        converted={}
+        for kind in ('zhenfu','leon','leonSuit'):
             sub=f'models/{kind}/';folder=root/sub;folder.mkdir(exist_ok=True,parents=True)
             doc=json.loads(studio.read('assets/'+sub+'actor.gltf'))
             for im in doc['images']:
-                name=im['uri'];im.update(image_file(studio.read('assets/'+sub+name),folder,Path(name).stem))
+                name=im['uri']
+                source=posixpath.normpath('assets/'+sub+name)
+                if source in converted:
+                    saved, size=converted[source]
+                    im.update({'uri':posixpath.relpath(saved,sub),'extras':{'studioSize':size}})
+                else:
+                    im.update(image_file(studio.read(source),folder,Path(name).stem))
+                    converted[source]=(sub+im['uri'],im['extras']['studioSize'])
             for b in doc['buffers']:(folder/b['uri']).write_bytes(studio.read('assets/'+sub+b['uri']))
             if kind=='zhenfu':
                 (folder/'expressions.glb').write_bytes(studio.read('assets/'+sub+'expressions.glb'))

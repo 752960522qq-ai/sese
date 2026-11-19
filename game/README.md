@@ -1,16 +1,22 @@
 # 甄芙 · 城市篇
 
-独立的离线 Android 游戏，包名 `studio.sese.citygame`，版本 0.1.1。Android 9 及以上，使用支持 WebGL 2 的 Android System WebView。动作制作工具「姿态排练室」1.2.1 使用 `studio.sese.pose`，两个应用可以同时安装。
+独立的离线 Android 游戏，包名 `studio.sese.citygame`，版本 0.2.0。Android 9 及以上，使用支持 WebGL 2 的 Android System WebView。动作制作工具「姿态排练室」1.3.0 使用 `studio.sese.pose`，两个应用可以同时安装。
+
+## 《明天就订车》第一章
+
+在手记选第一章。走近 SUV 上车，用左右键转向、油门加速、刹车减速。停稳后继续按刹车可倒车。按顺序经过路标，在终点停车下车。步行摇杆可走进展厅和酒店。键盘 W/S 为油门和刹车，A/D 为转向，E 为现场交互。剧情保留当前路标、车辆位置、手机阅读进度和订单页面。
+
+两版里昂分别使用 `leon`、`leonSuit` 骨架。第一章由西装里昂出演陈总。酒店接口默认留空，继续后进入次日。导入 `chapter01-hotel.module.json` 后可进入自编模块，仅导入 `chapter01-hotel.sese.json` 时可直接播放自编动作。支持同时导入 JSON、GLB 或模板 ZIP。
 
 ## 开始游戏
 
 「第七区碰面」从东风汽车销售中心门前开始。左下摇杆移动，外圈奔跑，拖动街景转动镜头，双指缩放。「手记」中可继续剧情、自由探索、跳转到各区道路以及换装。公共水面随街区加载。城市场景来自 hero_13 v24。第七区包含东风汽车销售中心和云庭酒店，街区地图可直达酒店正门与 23 层总统套房。18 个区块保留原坐标，并针对手机做了减面、贴图缩放和分块加载。运行时检查街面高度及建筑阻挡。
 
-甄芙使用 R19 素体和 R05 职业装。甄芙、里昂各有根部、中段、前端三个连续的阴茎骨骼，主游戏可播放动作制作 APK 录制的三轴旋转。黑色浅口高跟鞋使每名对手防御乘 0.95，黑色长筒丝袜使每名对手攻速乘 1.03、甄芙防御乘 1.07。服饰选择在开始对局时生效。
+甄芙使用 R19 素体和 R06 职业装。甄芙、里昂各有根部、中段、前端三个连续的阴茎骨骼，主游戏可播放动作制作 APK 录制的三轴旋转。黑色浅口高跟鞋使每名对手防御乘 0.95，黑色长筒丝袜使每名对手攻速乘 1.03、甄芙防御乘 1.07。服饰选择在开始对局时生效。
 
 ## 导入与联调
 
-1. 在「姿态排练室」1.2.1 中打开「剧情制作」，导入模板并编排动作，点「导出主游戏文件」取得关卡及引用的动作。「存档」也可单独导出一个角色的 `.action.json` 或多人搭配 `.sese.json`。
+1. 在「姿态排练室」1.3.0 中打开「剧情制作」，导入模板并编排动作，点「导出主游戏文件」取得关卡及引用的动作。「存档」也可单独导出一个角色的 `.action.json` 或多人搭配 `.sese.json`。
 2. 在游戏中打开「手记 → 关卡与动作 → 导入文件」。可以一次选择多份 JSON 或 GLB。首次使用配套示例时，先将 ZIP 解压，并多选目录里的 JSON。示例文件也已预装。
 3. 在「剧情」中点开关卡。文件导入顺序任意，关卡会列出尚缺的依赖。更新动作时导入同名文件，更新关卡时保持关卡 ID。文件存放在应用私有数据库中。相同批次有无效数据时，整批不写入。
 4. 「三人模块联调」依次播放单角色到场动作、载入三人搭配、显示三条独立数值条。点对手名字切换主要作用目标。默认两名对手分别是对手甲、对手乙。成品演出可以直接替换这一组示例站位。
@@ -36,6 +42,11 @@
 | --- | --- | --- |
 | dialogue | speaker、text、next 或 choices | 点继续或选择带 label、next 的选项 |
 | walk | label、position、radius、next | 甄芙进入目的地半径 |
+| drive | car、heading、route、可选 passenger、next | 上车经过有序路标，在终点刹停并下车 |
+| interact | label、position、radius、verb、text、fields、next | 走近位置，主动操作并确认 |
+| scene | position、timeOfDay、label、text、verb、next | 切换场景和光照后继续 |
+| phone | contact、messages、next | 按次序收发全部消息 |
+| slot | module、可选 file、next | 导入的模块结算、动作结束或直接继续 |
 | motion | file、可选 seconds、next | 动作到时，或玩家跳过 |
 | encounter | label、module、win、可选 great 和 lose | 模块结算，默认失败重新开始本场，默认大胜进入 win |
 | end | text | 章节结束，写入完成记录 |
@@ -64,8 +75,9 @@
 ```sh
 export ASSET_DIR="$PWD/build/city-assets" GAME_BUILD_DIR="$PWD/build/city-apk"
 python3 game/tools/prepare_city.py /path/to/hero13-v23-zips "$ASSET_DIR/city" /path/to/libmeshoptimizer.so --district-update /path/to/hero13_city_v24_07_酒店区块更新.zip
-python3 game/tools/prepare_cast.py /path/to/PoseStudio-1.2.1.apk /path/to/Zhenfu_Officewear_R05_Preview.zip "$ASSET_DIR" /path/to/libmeshoptimizer.so
+python3 game/tools/prepare_cast.py /path/to/PoseStudio-1.3.0.apk /path/to/Zhenfu_Officewear_R06_Preview.zip "$ASSET_DIR" /path/to/libmeshoptimizer.so
+python3 game/tools/prepare_vehicle.py /path/to/hero13_city_v24_07_酒店区块更新.zip "$ASSET_DIR/vehicles/dealer-suv.glb"
 bash game/tools/build.sh
 ```
 
-城市底包为 `hero13_city_v23_A_01-04.zip`、`hero13_city_v23_B_05-08.zip`、`hero13_city_v23_C_09-18.zip`，叠加 v24 第七区更新包后，构建器会用官方清单校验全部 18 个原始区块。构建机也可以从已交付游戏 APK 提取 `assets/` 作为 ASSET_DIR，直接运行最后一步更新程序。成品在 GAME_BUILD_DIR 的 `Zhenfu-City-0.1.1.apk`。默认使用本机测试证书，可用 GAME_KEYSTORE、GAME_KEY_ALIAS、GAME_KEY_PASS 指定发行证书。城市场景和车辆的署名收录在 APK 的 `assets/city/credits/`。
+城市底包为 `hero13_city_v23_A_01-04.zip`、`hero13_city_v23_B_05-08.zip`、`hero13_city_v23_C_09-18.zip`，叠加 v24 第七区更新包后，构建器会用官方清单校验全部 18 个原始区块。构建机也可以从已交付游戏 APK 提取 `assets/` 作为 ASSET_DIR，直接运行最后一步更新程序。成品在 GAME_BUILD_DIR 的 `Zhenfu-City-0.2.0.apk`。默认使用本机测试证书，可用 GAME_KEYSTORE、GAME_KEY_ALIAS、GAME_KEY_PASS 指定发行证书。城市场景和车辆的署名收录在 APK 的 `assets/city/credits/`。

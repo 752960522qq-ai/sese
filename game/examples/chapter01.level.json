@@ -1,0 +1,456 @@
+{
+  "type": "sese-story-level",
+  "version": 1,
+  "id": "tomorrow.chapter01",
+  "title": "《明天就订车》第一章｜酒店",
+  "city": "hero13-v24",
+  "spawn": [
+    140.77,
+    16.7,
+    -654
+  ],
+  "start": "opening",
+  "nodes": {
+    "opening": {
+      "kind": "scene",
+      "label": "第一天 · 东风汽车销售中心",
+      "position": [
+        140.77,
+        16.7,
+        -654
+      ],
+      "timeOfDay": "afternoon",
+      "text": "月底最后一个工作日。22 岁的销售顾问甄芙还差一单达标。她跟了陈总半个月，今天他终于肯过来试驾。",
+      "next": "keys",
+      "verb": "去接陈总"
+    },
+    "keys": {
+      "kind": "dialogue",
+      "speaker": "陈总",
+      "text": "就试门口这辆吧。你来开，我坐旁边，听听车里吵不吵。",
+      "next": "test_drive",
+      "companion": true
+    },
+    "test_drive": {
+      "kind": "drive",
+      "label": "陪陈总试驾",
+      "car": [
+        145,
+        16.64,
+        -652
+      ],
+      "heading": 90,
+      "passenger": "陈总",
+      "route": [
+        {
+          "label": "沿主路向东试驾",
+          "position": [
+            195,
+            16.65,
+            -652
+          ],
+          "radius": 7
+        },
+        {
+          "label": "掉头返回销售中心停车",
+          "position": [
+            144,
+            16.65,
+            -648.6
+          ],
+          "radius": 6
+        }
+      ],
+      "next": "return_door"
+    },
+    "return_door": {
+      "kind": "interact",
+      "label": "回销售中心",
+      "position": [
+        140.7,
+        16.94,
+        -679.6
+      ],
+      "radius": 3.0,
+      "verb": "进展厅",
+      "text": "陈总把车钥匙递还给甄芙，指了指里面的洽谈区。",
+      "fields": [
+        {
+          "label": "地点",
+          "value": "东风汽车销售中心 · 正门"
+        }
+      ],
+      "next": "dealer_in"
+    },
+    "dealer_in": {
+      "kind": "scene",
+      "label": "销售中心 · 洽谈区",
+      "position": [
+        140.7,
+        17,
+        -685
+      ],
+      "timeOfDay": "afternoon",
+      "text": "陈总留在展车旁。甄芙走向销售台，调出这辆车的最终报价。",
+      "next": "discount",
+      "verb": "去销售台"
+    },
+    "discount": {
+      "kind": "interact",
+      "label": "到销售台申请折扣",
+      "position": [
+        148.4,
+        17,
+        -694
+      ],
+      "radius": 3.6,
+      "verb": "申请折扣",
+      "text": "甄芙核对了车型、购置税和保险，把最终落地价发给经理审批。",
+      "fields": [
+        {
+          "label": "客户",
+          "value": "陈总"
+        },
+        {
+          "label": "最终落地价",
+          "value": "人民币 1,900,000 元"
+        },
+        {
+          "label": "经理批复",
+          "value": "同意按 190 万元成交，合同待签"
+        }
+      ],
+      "next": "price"
+    },
+    "price": {
+      "kind": "dialogue",
+      "speaker": "甄芙",
+      "text": "陈总，经理批过了。保险和税都算进去，落地一百九十万。您今天方便把名字签了吗？",
+      "next": "chen_later",
+      "companion": true
+    },
+    "chen_later": {
+      "kind": "dialogue",
+      "speaker": "陈总",
+      "text": "价格我知道了。合同先放你那儿，我晚些时候回你。",
+      "next": "close",
+      "companion": true
+    },
+    "close": {
+      "kind": "scene",
+      "label": "第一天 · 打烊前",
+      "position": [
+        148.4,
+        17,
+        -694
+      ],
+      "timeOfDay": "dusk",
+      "text": "展厅的灯一排排熄了，只剩洽谈桌上方那一盏。甄芙点开陈总的聊天窗口。",
+      "next": "phone",
+      "verb": "打开手机"
+    },
+    "phone": {
+      "kind": "phone",
+      "label": "打烊前的消息",
+      "contact": "陈总",
+      "messages": [
+        {
+          "from": "甄芙",
+          "text": "哥，在不，你考虑好了没，190万这个价格真的已经是最低了。"
+        },
+        {
+          "from": "陈总",
+          "text": "价格没问题，今天晚上来吃个饭，你把我伺候好了，明天我就订车。"
+        },
+        {
+          "from": "甄芙",
+          "text": "哥，咋不带这样的呀。"
+        },
+        {
+          "from": "甄芙",
+          "text": "前天晚上我什么服务都给你做了，上面都让你插了，还射小妹嘴里了，今天又要玩小妹。小妹只是个卖车的，这样让我很难为情呀。"
+        }
+      ],
+      "next": "address"
+    },
+    "address": {
+      "kind": "dialogue",
+      "speaker": "陈总",
+      "text": "云庭全日餐厅，七点半。我订了靠窗的桌，你到门口告诉我。",
+      "next": "leave_shop",
+      "companion": false
+    },
+    "leave_shop": {
+      "kind": "scene",
+      "label": "第一天 · 销售中心门外",
+      "position": [
+        140.77,
+        16.7,
+        -654
+      ],
+      "timeOfDay": "dusk",
+      "text": "甄芙把合同样本收进包里，到门口取车。餐厅在主路东边。",
+      "next": "dinner_drive",
+      "verb": "出发赴约"
+    },
+    "dinner_drive": {
+      "kind": "drive",
+      "label": "开车前往云庭全日餐厅",
+      "car": [
+        145,
+        16.64,
+        -652
+      ],
+      "heading": 90,
+      "route": [
+        {
+          "label": "沿主路驶向云庭酒店",
+          "position": [
+            207,
+            16.65,
+            -652
+          ],
+          "radius": 9
+        },
+        {
+          "label": "在酒店步道口靠边停车",
+          "position": [
+            264,
+            16.65,
+            -653.3
+          ],
+          "radius": 6.0
+        }
+      ],
+      "next": "restaurant_door"
+    },
+    "restaurant_door": {
+      "kind": "interact",
+      "label": "步行前往云庭酒店正门",
+      "position": [
+        264,
+        16.78,
+        -691.2
+      ],
+      "radius": 3.2,
+      "verb": "进入全日餐厅",
+      "text": "穿过酒店门前的步道，餐厅在一楼左手边。",
+      "fields": [
+        {
+          "label": "订位",
+          "value": "陈先生 · 两位"
+        },
+        {
+          "label": "餐厅",
+          "value": "云庭全日餐厅"
+        }
+      ],
+      "next": "dining_room"
+    },
+    "dining_room": {
+      "kind": "scene",
+      "label": "19:30 · 云庭全日餐厅",
+      "position": [
+        257.5,
+        16.99,
+        -702
+      ],
+      "timeOfDay": "night",
+      "text": "临窗的桌上摆着两套餐具。陈总已经到了，把菜单往甄芙手边推了推。",
+      "next": "dinner_1",
+      "verb": "入席"
+    },
+    "dinner_1": {
+      "kind": "dialogue",
+      "speaker": "陈总",
+      "text": "我到得早，点了条鱼。你看看还想吃什么？",
+      "next": "dinner_2",
+      "companion": true
+    },
+    "dinner_2": {
+      "kind": "dialogue",
+      "speaker": "甄芙",
+      "text": "够了，谢谢哥。合同我带了一份，您等上菜的时候看两眼？",
+      "next": "dinner_3",
+      "companion": true
+    },
+    "dinner_3": {
+      "kind": "dialogue",
+      "speaker": "陈总",
+      "text": "今天先吃饭。我白天试车听着挺安静，后排坐着也舒服。",
+      "next": "dinner_4",
+      "companion": true
+    },
+    "dinner_4": {
+      "kind": "dialogue",
+      "speaker": "甄芙",
+      "text": "您试的是副驾，下次我带您坐一趟后排。明天我在店里等您，您别又让我空着手交表呀。",
+      "next": "dinner_5",
+      "companion": true
+    },
+    "dinner_5": {
+      "kind": "dialogue",
+      "speaker": "陈总",
+      "text": "明早我去店里找你。慢慢吃，鱼凉了就不好了。",
+      "next": "lobby",
+      "companion": true
+    },
+    "lobby": {
+      "kind": "scene",
+      "label": "饭后 · 云庭酒店大堂",
+      "position": [
+        268,
+        16.98,
+        -699.4
+      ],
+      "timeOfDay": "night",
+      "text": "服务员收走餐盘。陈总说房间就在楼上，甄芙和他走到客梯前。",
+      "next": "lift",
+      "verb": "走向客梯"
+    },
+    "lift": {
+      "kind": "interact",
+      "label": "和陈总上楼",
+      "position": [
+        269,
+        16.98,
+        -699.7
+      ],
+      "radius": 2.8,
+      "verb": "乘客梯上楼",
+      "text": "电梯门合上，陈总刷了房卡。",
+      "fields": [
+        {
+          "label": "目的地",
+          "value": "云庭酒店 · 套房层"
+        }
+      ],
+      "next": "hotel_room"
+    },
+    "hotel_room": {
+      "kind": "scene",
+      "label": "夜间 · 云庭酒店套房",
+      "position": [
+        266,
+        102.66,
+        -711
+      ],
+      "timeOfDay": "night",
+      "text": "进了房间，陈总发现甄芙是跨性别女性，一时没接上话。甄芙在窗边停下，转身看着他。",
+      "next": "private_1",
+      "verb": "和陈总谈谈"
+    },
+    "private_1": {
+      "kind": "dialogue",
+      "speaker": "甄芙",
+      "text": "哥，我是跨性别女性。你要是有什么想问的，现在可以问我。只是这件事，我希望留在我们两个人之间。",
+      "next": "private_2",
+      "companion": true
+    },
+    "private_2": {
+      "kind": "dialogue",
+      "speaker": "陈总",
+      "text": "好，我答应你。刚才是我愣了神。你愿意留下来吗？",
+      "next": "private_3",
+      "companion": true
+    },
+    "private_3": {
+      "kind": "dialogue",
+      "speaker": "甄芙",
+      "text": "我愿意。车的事情，明天咱们回店里谈。",
+      "next": "hotel_slot",
+      "companion": true
+    },
+    "hotel_slot": {
+      "kind": "slot",
+      "label": "酒店 · 两人独处",
+      "module": "chapter01-hotel.module.json",
+      "file": "chapter01-hotel.sese.json",
+      "next": "morning"
+    },
+    "morning": {
+      "kind": "scene",
+      "label": "第二天 · 上午",
+      "position": [
+        140.7,
+        17,
+        -685
+      ],
+      "timeOfDay": "morning",
+      "text": "甄芙比同事早到了十分钟。打印机吐出两份合同，她把纸边磕齐，拿去洽谈桌。",
+      "next": "lay_contract",
+      "verb": "去放合同"
+    },
+    "lay_contract": {
+      "kind": "interact",
+      "label": "将合同放到洽谈桌",
+      "position": [
+        148.4,
+        17,
+        -694
+      ],
+      "radius": 3.6,
+      "verb": "放下合同",
+      "text": "第一批客人推开玻璃门，跟接待员说约了看车。甄芙抬头看了两次，陈总没来。",
+      "fields": [
+        {
+          "label": "购车人",
+          "value": "陈先生"
+        },
+        {
+          "label": "落地价",
+          "value": "人民币 1,900,000 元"
+        },
+        {
+          "label": "客户签名",
+          "value": "________________"
+        }
+      ],
+      "next": "evening"
+    },
+    "evening": {
+      "kind": "scene",
+      "label": "第二天 · 下班前",
+      "position": [
+        147,
+        17,
+        -693.8
+      ],
+      "timeOfDay": "dusk",
+      "text": "同事拿起车钥匙下班了。甄芙收好展台上的价签，最后一次打开这张订单。",
+      "next": "check_contract",
+      "verb": "查看订单"
+    },
+    "check_contract": {
+      "kind": "interact",
+      "label": "核查陈总的订单",
+      "position": [
+        148.4,
+        17,
+        -694
+      ],
+      "radius": 3.6,
+      "verb": "核查订单",
+      "text": "合同还在昨天约好的位置。甄芙翻到最后一页。",
+      "fields": [
+        {
+          "label": "订单状态",
+          "value": "待客户签署"
+        },
+        {
+          "label": "实收订金",
+          "value": "0 元"
+        },
+        {
+          "label": "客户签名",
+          "value": "________________"
+        }
+      ],
+      "next": "end"
+    },
+    "end": {
+      "kind": "end",
+      "text": "直到下班，合同上的签名栏还是空的。"
+    }
+  }
+}

@@ -1,7 +1,8 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"><meta name="theme-color" content="#1c2c2f"><title>甄芙 · 城市篇</title><link rel="stylesheet" href="city.css"></head><body>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1"><meta name="theme-color" content="#1c2c2f"><title>甄芙 · 城市篇</title><link rel="stylesheet" href="city.css"><link rel="stylesheet" href="chapter.css"></head><body>
 <canvas id="world" aria-label="三维城市，拖动旋转视角"></canvas><div id="vignette"></div>
 <header><div class="brand"><b aria-hidden="true">▥</b> 甄芙 <em>／</em> 城市篇</div><button id="journal">手记</button></header>
 <div id="location" hidden></div><div id="objective" hidden></div><div id="stick" hidden aria-label="移动摇杆"><i></i></div>
+<div id="chapterHUD" hidden><div id="driving" hidden><div class="steering"><button data-control="left" aria-label="左转">◀</button><button data-control="right" aria-label="右转">▶</button></div><div class="pedals"><button data-control="brake">刹车／倒车</button><button data-control="gas">油门</button></div></div><output id="driveSpeed" hidden></output><button id="contextAction" hidden></button></div>
 <section id="panel"><small id="eyebrow">城市手记</small><h1 id="title">第七区碰面</h1><p id="copy">正在读取城市与角色…</p><div id="content"></div><div class="actions" id="actions"></div></section>
 <section id="combat" hidden><div class="meters" id="meters"></div><div id="controls"></div></section><button id="pause" hidden>暂停</button>
 <div id="toast" role="status" hidden></div><input type="file" id="files" multiple hidden><script type="module" src="game.js"></script></body></html>

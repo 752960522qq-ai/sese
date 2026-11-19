@@ -13,7 +13,7 @@ function pieces(bytes) {
 }
 export async function inspectGlb(file){
   const data=await file.arrayBuffer(),{json}=pieces(data);
-  skeletons??=Promise.all(['zhenfu','leon'].map(async type=>{
+  skeletons??=Promise.all(['zhenfu','leon','leonSuit'].map(async type=>{
     const spec=await (await fetch('./models/'+type+'/actor.gltf')).json();
     return {type,bones:new Set(spec.skins[0].joints.map(i=>T.PropertyBinding.sanitizeNodeName(spec.nodes[i].name)))};
   }));

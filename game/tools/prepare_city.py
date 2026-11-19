@@ -60,12 +60,12 @@ def surface(name, district):
     low=name.lower()
     if district==18 or 'water_surface' in low: return 'water'
     if district==7:
-        if low.startswith(('d07_hotel24_', 'hotel parcel |', 'hotel arrival |')): return 'walk'
+        if low.startswith(('d07_hotel24_', 'hotel parcel |', 'hotel arrival |', 'optional | street apron subbase', 'pedestrian crossing |', 'dropoff | granite setts')): return 'walk'
         if low.startswith('ps23_') and ('floor' in low or '_rug' in low): return 'walk'
         if any(label in low for label in ('structural slab with purpose-made', 'stone structural tread',
                 'solid warm timber tread', 'stair | landing oak', 'stair | threshold plate',
                 'stair | transverse turning landing', 'hot-dip galvanized grate', 'slab joint',
-                'step-free apron')): return 'walk'
+                'cut stone finished floor', 'step-free apron')): return 'walk'
     if district==17 and not any(v in low for v in ('rail','pier','support','cable','parapet')): return 'walk'
     if any(v in low for v in ('sculpted_terrain','ground_','road_kit','pavement','sidewalk','entrance_walk','landscape_grade','connector','driveway','ramp','roadway','bridge_deck','terrazzo slabs','forecourt |','parking |','floor |','slab |','curb_cut','road_mark','road_','access walk','site slab','floor datum','entry landing','graded_ground','pedestrian path','entry approach')):
         return 'walk'

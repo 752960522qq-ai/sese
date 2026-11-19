@@ -1,3 +1,4 @@
+import {chapterNode} from './chapter-nodes.js';
 import {readCombination} from './scene-file.js';
 import {BASE_POSES} from './duel.js';
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
@@ -16,7 +17,7 @@ export function encounter(n) {
   for(const [i,a] of [n.lead,...n.opponents].entries()){
     if(!object(a)||!id(a.id)||ids.has(a.id))fail('玩家和对手须使用不同的角色 ID');
     ids.add(a.id);a.label??=i?'对手 '+i:'甄芙';a.model??=i?'leon':'zhenfu';
-    if(!str(a.label,40)||!['zhenfu','leon'].includes(a.model)||(!i&&a.model!=='zhenfu'))fail('模块演员设置无效');
+    if(!str(a.label,40)||!['zhenfu','leon','leonSuit'].includes(a.model)||(!i&&a.model!=='zhenfu'))fail('模块演员设置无效');
     for(const [key,value,lo,hi] of [['start',0,0,99.99],['stamina',100,0,100],['sensitivity',1,.1,5],['attack',1,.1,5],['defense',1,.1,5],['gain',i?1.10:1.06,0,20]]){
       a[key]??=value;if(!within(a[key],lo,hi))fail(a.id+' 的 '+key+' 超出范围');
     }
@@ -74,7 +75,7 @@ export function documentLevel(data) {
         if(node.module){ref(node.module);}else{encounter(node);for(const p of node.poses)if(p.file)ref(p.file);}
         link(node.win);link(node.great??node.win);if(node.lose)link(node.lose);break;
       case 'end':if(!str(node.text,4000))fail(key+' 缺少结尾');break;
-      default:fail(key+' 包含未知节点类型');
+      default:if(!chapterNode(node,link))fail(key+' 包含未知节点类型');
     }
   }
   const seen=new Set([data.start]),pending=[data.start],adj=new Map();
@@ -88,13 +89,13 @@ function actionScene(doc,file) {
     if(doc.version!==1||!object(doc.actor))fail('独立动作文件格式有误');
     const a=doc.actor;
     doc={type:'sese-pose-combination',version:1,name:doc.name??file,
-      scene:{format:1,actors:[{p:[0,0,0],yaw:0,id:'lead',label:a.type==='leon'?'里昂':'甄芙',rate:1,time:0,dir:1,offsets:{},keys:[],...a}]}};
+      scene:{format:1,actors:[{p:[0,0,0],yaw:0,id:'lead',label:a.type==='leonSuit'?'西装里昂':a.type==='leon'?'里昂':'甄芙',rate:1,time:0,dir:1,offsets:{},keys:[],...a}]}};
   }
   const parsed=readCombination(JSON.stringify(doc));const s=parsed.scene;
   if(s.format!==1||!s.actors.length||s.actors.length>16)fail('动作角色数量或版本有误');
   if(new Set(s.actors.map(a=>a.id)).size!==s.actors.length)fail('搭配中有重复角色');
   for(const a of s.actors){
-    if(!['zhenfu','leon'].includes(a.type)||!str(a.id)||!vec(a.p,3)||!Number.isFinite(a.yaw)||!str(a.clip)||!within(a.rate,0,12)||!Number.isFinite(a.time))fail('动作中的角色参数无效');
+    if(!['zhenfu','leon','leonSuit'].includes(a.type)||!str(a.id)||!vec(a.p,3)||!Number.isFinite(a.yaw)||!str(a.clip)||!within(a.rate,0,12)||!Number.isFinite(a.time))fail('动作中的角色参数无效');
     if(a.clip==='@keys'&&!a.keys.length)fail('自编动作缺少关键帧');
   }
   if(s.camera&&(!vec(s.camera.p,3)||!vec(s.camera.target,3)))fail('动作镜头坐标无效');

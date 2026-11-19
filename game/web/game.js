@@ -1,3 +1,5 @@
+import {chapterUI} from './chapter-ui.js';
+import {expandFiles} from './import-zip.js';
 import {CityWorld} from './world.js';
 import {readImport} from './formats.js';
 import {inspectGlb} from './clip-file.js';
@@ -13,7 +15,7 @@ try{profile=JSON.parse(localStorage.getItem(storageKey))||{};}catch{profile={};}
 profile={points:0,clothes:{pumps:true,stockings:true},run:null,done:{},...profile};
 let world,level,node,config,battle,screen='loading',menu=null,pending=false,ready=false,visit=0,poseIndex=0,visualPose=-1,visualRequest=0;
 let motionTime=0,motionEnd=0,previewReturn='library',before='',stick=[0,0],pointer=null,toastId,selection='level',currentDistrict=7;
-let cards=[],combatRefs=null;
+let chapter,combatRefs=null;
 const keyOf=r=>r.kind==='level'?'level:'+r.data.id.toLowerCase():r.name.normalize('NFC').toLowerCase();
 const resolve=name=>files.get(name.split('#')[0].normalize('NFC').toLowerCase());
 const part=name=>name?.includes('#')?name.slice(name.indexOf('#')+1):undefined;
@@ -22,7 +24,7 @@ function notify(s){$('toast').textContent=s;$('toast').hidden=false;clearTimeout
 window.cityNotice=notify;
 function persist(){try{localStorage.setItem(storageKey,JSON.stringify(profile));}catch{notify('设备存储空间不足，当前进度只能保留在本次运行');}}
 function checkpoint(){
-  if(level&&profile.run){profile.run.position=world.pos.toArray();profile.run.key=keyOf(level);}
+  if(level&&profile.run){profile.run.position=world.pos.toArray();profile.run.key=keyOf(level);if(node?.kind==='drive'&&world.car.active&&profile.run.detail)profile.run.detail.car=world.car.save();}
   persist();
 }
 function btn(text,fn,cls,into=$('actions')){
@@ -35,10 +37,12 @@ function panel(k,title,copy=''){
   $('panel').hidden=false;$('panel').scrollTop=0;$('eyebrow').textContent=k;$('title').textContent=title;$('copy').textContent=copy;
   $('content').replaceChildren();$('actions').replaceChildren();
 }
-function resetStick(){pressed.clear();pointer=null;stick=[0,0];$('stick').firstElementChild.style.transform='';}
+function resetStick(){chapter?.clearInput();pressed.clear();pointer=null;stick=[0,0];$('stick').firstElementChild.style.transform='';}
 function bars(){
   const walking=ready&&!menu&&screen==='walk';
-  $('stick').hidden=!walking;$('objective').hidden=!walking;$('combat').hidden=!!menu||screen!=='battle';
+  if(!walking)chapter?.hide();
+  document.body.dataset.screen=menu||screen;
+  $('stick').hidden=!walking||!!world?.car?.occupied;$('objective').hidden=!walking;$('combat').hidden=!!menu||screen!=='battle';
   $('pause').hidden=!!menu||!['battle','film','preview'].includes(screen);$('journal').hidden=!ready;
   $('location').hidden=!ready||(!menu&&screen==='battle');$('location').textContent='第 '+String(currentDistrict).padStart(2,'0')+' 区  /  '+districtNames[currentDistrict-1];
   if(!walking)resetStick();
@@ -72,6 +76,8 @@ function home(){
   menu='home';bars();panel('城市手记','甄芙 · 城市篇',profile.run?'上次的关卡进度已保留。':'从主岛北部的东风汽车销售中心出发。');
   const cont=profile.run&&files.get(profile.run.key);
   if(cont)card('继续 · '+cont.title,'从当前剧情节点继续',()=>launch(cont,true));
+  const first=files.get('level:tomorrow.chapter01');
+  if(first)card(first.title,'东风销售中心 → 云庭酒店  /  第三人称剧情',()=>launch(first));
   const def=files.get('level:city.district07');
   if(def)card(def.title,'城市剧情  /  第 07 区',()=>launch(def));
   card('三人模块联调','甄芙与两名对手  /  独立数值条',()=>launch(files.get('level:author.first-meeting')));
@@ -96,7 +102,7 @@ function openMenu(which){
   }
   if(which==='library'){
     const types={level:'剧情',module:'对局模块',motion:'动作'};
-    panel('内容管理','关卡与动作','可同时选择关卡、模块和动作文件。引用文件按文件名匹配。');
+    panel('内容管理','关卡与动作','可导入整章 ZIP，也可同时选择关卡、模块和动作文件。');
     const tabs=el('div','row');$('content').append(tabs);for(const [k,t] of Object.entries(types))btn(t,()=>{selection=k;openMenu('library');},selection===k?'current':'subtle',tabs);
     for(const r of files.values()){
       if(r.kind!==selection&&!(selection==='motion'&&r.kind==='glb'))continue;
@@ -128,17 +134,26 @@ async function launch(r,resume=false){
     world.clearShow();world.mark(null);const run=resume&&profile.run?.key===keyOf(r)?profile.run:null;
     await world.travel(run?.position??r.data.spawn);currentDistrict=districtAt();level=r;battle=null;menu=null;before='';
     profile.run=run??{key:keyOf(r),node:r.data.start,position:r.data.spawn};
-    await enter(profile.run.node);
+    world.light(profile.run.timeOfDay);await enter(profile.run.node,!!run);
   });
 }
 function districtAt(){const p=world.pos;let best=Infinity,idx=7;for(const t of world.index.tiles){if(t.district===18)continue;const [a,b]=t.bounds;const d=Math.hypot(Math.max(a[0]-p.x,0,p.x-b[0]),Math.max(a[2]-p.z,0,p.z-b[2]));if(d<best){best=d;idx=t.district;}}return idx;}
 async function freeWalk(p=null,d=null){
-  await busy('进入街区',async()=>{checkpoint();world.clearShow();world.mark(null);if(p)await world.travel(p);else world.resetCamera();currentDistrict=d??districtAt();level=null;node=null;battle=null;menu=null;before='';screen='walk';render();});
+  await busy('进入街区',async()=>{checkpoint();world.clearShow();world.mark(null);if(p)await world.travel(p);else world.resetCamera();currentDistrict=d??districtAt();level=null;node=null;battle=null;menu=null;before='';world.light();
+    if(Math.hypot(world.pos.x-145,world.pos.z+652)<150&&Math.abs(world.pos.y-16.7)<4)await world.car.park([145,16.64,-652],90);
+    screen='walk';render();});
 }
-async function enter(id){
+async function enter(id,resume=false){
   if(!level||!Object.hasOwn(level.data.nodes,id))throw Error('剧情节点不存在');
   const token=++visit;visualRequest++;world.clearShow();world.mark(null);world.resetCamera();battle=null;visualPose=-1;
-  profile.run.node=id;node=level.data.nodes[id];menu=null;poseIndex=0;checkpoint();
+  profile.run.node=id;node=level.data.nodes[id];menu=null;poseIndex=0;
+  if(!resume||profile.run.detail?.id!==id)profile.run.detail={id};
+  if(node.kind==='scene')profile.run.timeOfDay=node.timeOfDay;
+  if(node.companion)await world.showCompanion();
+  const custom=await chapter.enter(node,profile.run.detail,resume);
+  if(custom)screen=custom;
+  if(node.kind==='slot'&&profile.run.result)screen='result';
+  checkpoint();
   if(node.kind==='walk'){screen='walk';world.mark(node.position);}
   if(node.kind==='dialogue')screen='dialogue';
   if(node.kind==='motion'){
@@ -153,6 +168,7 @@ async function enter(id){
 function follow(id){return busy('',()=>enter(id));}
 function render(){
   bars();if(menu)return;const c=$('content');
+  if(node&&chapter.render(screen,node,profile.run?.detail))return;
   if(screen==='walk'){$('panel').hidden=true;$('objective').textContent=node?node.label:'自由探索 · 左侧摇杆移动，拖动街景转向';return;}
   if(screen==='dialogue'){
     panel(level.title,node.speaker??'剧情',node.text);
@@ -165,7 +181,7 @@ function render(){
   else if(screen==='result'){
     const delta=profile.run?.result.delta??0;panel('对局结算',outcomes[battle?.outcome??profile.run?.result.outcome],(profile.run?.result.outcome==='lose'?'甄芙先达到 100。':profile.run?.result.outcome==='great'?'双方同时达到判定点。':'对手先达到判定点。')+' 本场积分 '+(delta>=0?'+':'')+delta+'，当前 '+profile.points+'。');
     for(const a of profile.run.result.meters)c.append(el('div','minor',a.label+'  ·  '+a.value.toFixed(1)+' / 100'));
-    const res=profile.run.result, target=res.outcome==='lose'?(node.lose??profile.run.node):res.outcome==='great'?(node.great??node.win):node.win;
+    const res=profile.run.result, target=node.kind==='slot'?(res.outcome==='lose'?profile.run.node:node.next):res.outcome==='lose'?(node.lose??profile.run.node):res.outcome==='great'?(node.great??node.win):node.win;
     btn(res.outcome==='lose'?'重新开始':'继续剧情',()=>{delete profile.run.result;return follow(target);},'primary');
   }else if(screen==='film'||screen==='preview'){
     panel(screen==='preview'?'独立动作':'剧情动作',screen==='preview'?previewReturn:'动作播放','');
@@ -219,12 +235,12 @@ async function preview(r){
 function endPreview(){world.clearShow();world.resetCamera();screen='home';node=null;level=null;battle=null;before='';openMenu('library');}
 async function addFiles(list){
   if(!list.length)return;
-  const staged=[],unique=new Set();
-  for(const f of list){const r=await readImport(f,inspectGlb);r.key=keyOf(r);r.date=Date.now();
+  const inSlot=screen==='slot'&&!menu,staged=[],unique=new Set();
+  for(const f of await expandFiles(list)){const r=await readImport(f,inspectGlb);r.key=keyOf(r);r.date=Date.now();
     if(unique.has(r.key))throw Error('本次选择有重复的文件名或关卡 ID');unique.add(r.key);staged.push(r);}
   await writeBatch(staged);for(const r of staged)files.set(r.key,r);
   selection=staged.some(r=>r.kind==='level')?'level':staged[0].kind==='glb'?'motion':staged[0].kind;
-  openMenu('library');notify('已导入 '+staged.length+' 个文件');
+  if(inSlot)render();else openMenu('library');notify('已导入 '+staged.length+' 个文件');
 }
 $('files').onchange=async e=>{const list=Array.from(e.target.files);e.target.value='';try{await addFiles(list);}catch(err){notify(err.message);}};
 $('journal').onclick=()=>{if(!pending){if(menu==='home'&&before)closeMenu();else openMenu('home');}};
@@ -232,7 +248,7 @@ $('pause').onclick=()=>{if(!pending)openMenu('paused');};
 window.citySuspend=()=>{if(ready&&!menu&&!pending&&['battle','film','preview','walk'].includes(screen))openMenu('paused');if(ready)checkpoint();resetStick();};
 document.addEventListener('visibilitychange',()=>{if(document.hidden)window.citySuspend();});
 window.cityBack=()=>{if(!ready||pending)return true;if(menu==='home'&&!before)return false;if(menu){if(menu==='paused'||menu==='home')closeMenu();else openMenu('home');}else openMenu('home');return true;};
-window.addEventListener('keydown',e=>{if(e.code.startsWith('Arrow')||['KeyW','KeyS','KeyA','KeyD','ShiftLeft','ShiftRight'].includes(e.code)){e.preventDefault();pressed.add(e.code);}if(e.code==='Escape')window.cityBack();});
+window.addEventListener('keydown',e=>{if(e.code.startsWith('Arrow')||['KeyW','KeyS','KeyA','KeyD','ShiftLeft','ShiftRight'].includes(e.code)){e.preventDefault();pressed.add(e.code);}if(e.code==='Escape')window.cityBack();if(e.code==='KeyE'&&!e.repeat&&!menu&&!pending&&screen==='walk')chapter?.activate();});
 window.addEventListener('keyup',e=>pressed.delete(e.code));window.addEventListener('blur',resetStick);
 const stickEl=$('stick');
 function joy(e){const r=stickEl.getBoundingClientRect(),x=(e.clientX-r.left-r.width/2)/(r.width*.35),y=(e.clientY-r.top-r.height/2)/(r.height*.35),m=Math.max(1,Math.hypot(x,y));stick=[x/m,y/m];stickEl.firstElementChild.style.transform='translate('+stick[0]*r.width*.28+'px,'+stick[1]*r.height*.28+'px)';}
@@ -244,8 +260,7 @@ function loop(ms){
   const dt=last?Math.min(1,(ms-last)/1000):0;last=ms;
   if(!menu&&!pending){
     if(screen==='walk'){
-      const key=k=>Number(pressed.has(k));const x=stick[0]+key('KeyD')+key('ArrowRight')-key('KeyA')-key('ArrowLeft'),y=stick[1]+key('KeyS')+key('ArrowDown')-key('KeyW')-key('ArrowUp');
-      world.move(x,y,dt,Math.hypot(...stick)>.79||!!(key('ShiftLeft')+key('ShiftRight')));
+      chapter.tick(dt,pressed,stick);
       walkingMs+=dt;if(walkingMs>3){walkingMs=0;currentDistrict=districtAt();bars();checkpoint();}
       if(node?.kind==='walk'){
         const dist=Math.hypot(node.position[0]-world.pos.x,node.position[2]-world.pos.z);$('objective').textContent=node.label+'  ·  '+Math.ceil(dist)+' 米';
@@ -263,14 +278,20 @@ function loop(ms){
       world.tickCast(dt);motionTime+=dt;if(motionTime>=motionEnd){if(screen==='film')follow(node.next);else endPreview();}
     }
   }
+  if(!menu&&world.companion?.root.visible&&screen==='dialogue')world.companion.walk('Idle',ms/1000);
   world.draw();
 }
 async function start(){
-  for(const name of ['district07.level.json','first-meeting.level.json','arrival.action.json','city-duo-opponents.module.json','cast-three.sese.json']){
+  for(const name of ['chapter01.level.json','district07.level.json','first-meeting.level.json','arrival.action.json','city-duo-opponents.module.json','cast-three.sese.json']){
     const value=await (await fetch('./examples/'+name)).blob(),r=await readImport(new File([value],name),inspectGlb);r.key=keyOf(r);files.set(r.key,r);built.add(r.key);
   }
   for(const r of await readAll())files.set(r.key,r);
   world=new CityWorld($('world'),notify);await world.init(profile.clothes,startPos,t=>$('copy').textContent=t);
+  chapter=chapterUI({world,panel,btn,el,follow,checkpoint,notify,resolve,part,resetInput:resetStick,
+    info:()=>({node,state:profile.run?.detail}),redraw:render,screen:value=>{screen=value;render();},
+    startModule:async r=>{if(r.kind!=='module')throw Error('接口文件类型不符');const missing=deps(r);if(missing.length)throw Error('待导入 '+missing.join('、'));assertCast(r.data);config=r.data;screen='setup';render();},
+    startMotion:async(r,partName)=>{if(!['motion','glb'].includes(r.kind))throw Error('备用文件须为角色动作');await busy('打开动作',async()=>{motionEnd=await world.show(r,partName);motionTime=0;screen='film';render();});}
+  });
   ready=true;screen='home';before='';home();requestAnimationFrame(loop);
 }
 start().catch(e=>{console.error(e);panel('启动失败','城市未能打开',e.message);btn('重新载入',()=>location.reload(),'primary');});

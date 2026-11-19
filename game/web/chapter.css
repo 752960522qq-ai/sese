@@ -1,0 +1,18 @@
+#chapterHUD{position:fixed;inset:0;pointer-events:none}
+#chapterHUD button{pointer-events:auto;touch-action:none;user-select:none}
+#contextAction{position:absolute;right:max(25px,env(safe-area-inset-right));bottom:max(102px,env(safe-area-inset-bottom));padding:9px 20px;color:#f5e6ca;background:#293d40ee;border-color:#e1b878}
+#contextAction:disabled{opacity:.46}
+#driving{position:absolute;inset:0;pointer-events:none}
+#driving .steering,#driving .pedals{position:absolute;display:flex;gap:8px;bottom:max(19px,env(safe-area-inset-bottom))}
+.steering{left:max(22px,env(safe-area-inset-left))}.pedals{right:max(22px,env(safe-area-inset-right))}
+#driving button{min-width:62px;height:60px;background:#1c343cdd;border-radius:10px;border:1px solid #cadbdf77;color:white;font-size:15px}
+#driving .steering button{font-size:24px}#driving button.held{background:#8c6b41;transform:translateY(1px)}
+#driveSpeed{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:#1e3035eb;border-radius:5px;padding:6px 11px;font-variant-numeric:tabular-nums}
+.orderFields{display:grid;grid-template-columns:auto 1fr;gap:0;margin:8px 0 12px;border-top:1px solid #a8b4ad55}
+.orderFields dt,.orderFields dd{margin:0;padding:8px 0;border-bottom:1px solid #a8b4ad33}.orderFields dt{color:#aabbb8;padding-right:14px}.orderFields dd{text-align:right}
+.thread{max-height:36vh;overflow:auto;display:flex;flex-direction:column;gap:7px;overscroll-behavior:contain}.thread>div{max-width:91%;display:flex;flex-direction:column;align-items:start}.thread .sent{align-self:end;align-items:end}.thread small{color:#bac7c2;font-size:10px}
+.thread p{margin:2px 0 0;padding:7px 10px;line-height:1.5;border-radius:9px;background:#41565a;color:#f8f7f0}.thread .sent p{background:#dae6cd;color:#22342c}
+#objective{pointer-events:none}
+
+#objective[data-nav]{padding-left:32px;min-height:30px}
+#objective[data-nav]::before{content:'↑';display:inline-block;position:absolute;left:9px;top:50%;color:var(--gold);font-size:19px;line-height:1;transform:translateY(-50%) rotate(var(--bearing));transform-origin:center}
