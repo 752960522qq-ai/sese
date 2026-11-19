@@ -2,6 +2,7 @@ import * as T from './vendor/three.module.min.js';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { useOriginalWeights } from './skin.js';
 import { attachMorphs } from './morph.js';
+import { loadExpressions, ExpressionLayer } from './expressions.js';
 
 export const characterNames = { zhenfu: '甄芙', leon: '里昂' };
 export const clipNames = {
@@ -52,7 +53,9 @@ export function sortedJoints(actor) {
     used = new Set();
   for (const [label, z, l] of aliases) {
     const name = Array.from(actor.bones.keys()).find((n) =>
-      actor.type === 'leon' ? n === l : n.toLowerCase().replace(/^mixamorig:?/, '') === z.toLowerCase()
+      actor.type === 'leon'
+        ? n === l
+        : n.toLowerCase().replace(/^mixamorig:?/, '') === z.toLowerCase()
     );
     if (name && !used.has(name)) {
       ordered.push([name, label]);
@@ -150,7 +153,13 @@ async function template(type, progress) {
       if (n.isSkinnedMesh) n.frustumCulled = false;
     });
     const metadata = new Map(spec.animations.map((a) => [a.name, a.extras || {}]));
-    return { scene: gltf.scene, clips: new Map(gltf.animations.map((c) => [c.name, c])), metadata };
+    const expressions = type === 'zhenfu' ? await loadExpressions(base + 'expressions.glb') : null;
+    return {
+      scene: gltf.scene,
+      clips: new Map(gltf.animations.map((c) => [c.name, c])),
+      metadata,
+      expressions
+    };
   })().catch((e) => {
     snapshots.delete(type);
     throw e;
@@ -229,6 +238,7 @@ export class Actor {
     this.action = null;
     this.activeName = '';
     this.lastMotion = null;
+    this.face = source.expressions ? new ExpressionLayer(this, source.expressions) : null;
     this.apply();
   }
   get duration() {
@@ -296,6 +306,7 @@ export class Actor {
   }
   walk(clip, time) {
     this.revision++;
+    this.face?.restore();
     this.stopOffsets();
     this.setClip(clip);
     if (this.action) {
@@ -304,6 +315,7 @@ export class Actor {
     }
     this.place();
     for (const driver of this.deformers) driver.update();
+    this.face?.apply();
   }
   place() {
     this.root.position.fromArray(this.state.p);
@@ -312,6 +324,7 @@ export class Actor {
   apply() {
     const s = this.state;
     this.revision++;
+    this.face?.restore();
     this.stopOffsets();
     this.setClip(s.clip);
     this.place();
@@ -327,8 +340,17 @@ export class Actor {
       this.applied.push([b, b.quaternion.clone()]);
       b.quaternion.multiply(q0.setFromEuler(euler.set(...angles.map(deg), 'XYZ'))).normalize();
     }
+    this.face?.apply();
+  }
+  refreshExpression() {
+    if (!this.face) return;
+    this.face.restore();
+    this.face.apply();
+    this.revision++;
   }
   capture() {
+    // A reusable body key must remain independent of the live facial tracks.
+    this.face?.restore();
     const joints = {},
       morph = {};
     for (const [name, b] of this.bones) {
@@ -347,6 +369,7 @@ export class Actor {
       if (changed(n.morphTargetInfluences, this.restMorph[i]))
         morph[i] = compact(n.morphTargetInfluences);
     });
+    this.face?.apply();
     return {
       joints,
       morph,
@@ -395,6 +418,7 @@ export class Actor {
     this.root.rotation.y = deg(s.yaw + a.yaw + turn * f - first.yaw);
   }
   dispose() {
+    this.sound?.pause();
     for (const driver of this.deformers) driver.dispose();
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.model);

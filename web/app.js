@@ -1,6 +1,8 @@
 import * as T from './vendor/three.module.min.js';
 import { Actor, fresh, characterNames, clipNames, sortedJoints, clamp } from './rig.js';
 import { Stage } from './stage.js';
+import { loadSoundBank, SoundTrack } from './sounds.js';
+import { exportCombination, readCombination, readBrowserFile } from './scene-file.js';
 import * as db from './storage.js';
 
 const $ = (id) => document.getElementById(id),
@@ -9,6 +11,7 @@ const actors = new Map(),
   keysHeld = new Set(),
   joy = { x: 0, y: 0 };
 let stage,
+  sounds,
   selected = 'lead',
   mode = 'walk',
   group = false,
@@ -84,14 +87,21 @@ function resetStick() {
   $('knob').style.transform = '';
 }
 function syncVisible() {
-  for (const a of actors.values()) a.root.visible = group || a.state.id === selected;
+  for (const a of actors.values()) {
+    a.root.visible = group || a.state.id === selected;
+    if (!a.root.visible) {
+      a.sound.pause();
+      a.comboClock = null;
+    }
+  }
   $('walk').setAttribute('aria-pressed', String(mode === 'walk'));
   $('pose').setAttribute('aria-pressed', String(mode === 'pose'));
   $('group').setAttribute('aria-pressed', String(group));
   $('stick').hidden = mode !== 'walk';
   $('walkGuide').hidden = mode !== 'walk';
   $('poseTools').hidden = mode === 'walk';
-  $('sceneLabel').textContent = (group ? '多人' : '单人') + ' · ' + (chosen()?.state.label || '甄芙');
+  $('sceneLabel').textContent =
+    (group ? '多人' : '单人') + ' · ' + (chosen()?.state.label || '甄芙');
   $('count').textContent = (group ? actors.size : 1) + ' 人';
   $('remove').hidden = selected === 'lead';
 }
@@ -108,11 +118,13 @@ function setMode(next) {
   if (next === 'walk') stage.frame([chosen()]);
 }
 function setPane(which) {
+  if (which === 'face' && !chosen()?.face) which = 'motion';
   pane = which;
   document
     .querySelectorAll('[data-pane]')
     .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pane === which)));
-  for (const k of ['motion', 'transform', 'library']) $('pane-' + k).hidden = k !== which;
+  for (const k of ['motion', 'face', 'sound', 'transform', 'library'])
+    $('pane-' + k).hidden = k !== which;
   if (which === 'library') refreshSlots().catch((e) => notify(e.message));
 }
 function panel(open) {
@@ -141,6 +153,10 @@ function syncAll() {
   $('clip').replaceChildren(...tracks.map((k) => option(k, reasonLabel(a, k))));
   $('clip').value = a.state.clip;
   $('rate').value = String(a.state.rate);
+  document.querySelector('[data-pane="face"]').hidden = !a.face;
+  if (!a.face && pane === 'face') setPane('motion');
+  if (a.face) syncFace(a.face);
+  syncSound(a);
   const old = $('joint').value,
     groups = sortedJoints(a);
   $('joint').replaceChildren();
@@ -169,6 +185,228 @@ function clockUI() {
   $('timeText').textContent = t.toFixed(2) + ' / ' + d.toFixed(2) + ' s';
   $('play').textContent = a.state.playing ? '定格' : '播放';
   $('play').disabled = !d;
+}
+function faceClockUI(face) {
+  const s = face.state,
+    duration = face.clip?.duration || 0;
+  $('faceTime').disabled = $('facePlay').disabled = !duration;
+  $('faceTime').max = String(duration || 1);
+  $('faceTime').value = String(s.time);
+  $('faceClock').textContent =
+    s.playing && s.wait > 0
+      ? '等待 ' + s.wait.toFixed(2) + ' s'
+      : s.time.toFixed(2) + ' / ' + duration.toFixed(2) + ' s';
+  $('facePlay').textContent = s.playing ? '定格表情' : '播放表情';
+}
+function syncFace(face) {
+  const s = face.state,
+    selector = $('expressionClip');
+  if (!selector.options.length) {
+    selector.add(option('', '自然待机'));
+    for (const [kind, label] of [
+      ['enjoy', '享受'],
+      ['other', '其他表情']
+    ]) {
+      const group = document.createElement('optgroup');
+      group.label = label;
+      for (const clip of face.library.clips.values())
+        if (clip.kind === kind) group.append(option(clip.name, clip.label));
+      selector.append(group);
+    }
+  }
+  selector.value = s.clip;
+  $('faceStrength').value = Math.round(s.strength * 100);
+  $('faceAmount').textContent = $('faceStrength').value + '%';
+  $('faceDelay').value = Number(s.delay.toFixed(3));
+  $('faceLoop').checked = s.loop;
+  $('faceBlink').checked = s.blink;
+  $('faceBreath').checked = s.breath;
+  faceClockUI(face);
+}
+function bindFace() {
+  const edit = (adjust) => {
+    const actor = chosen();
+    if (!actor?.face) return;
+    adjust(actor.face.state, actor.face);
+    actor.refreshExpression();
+    syncFace(actor.face);
+  };
+  $('expressionClip').onchange = (e) =>
+    edit((s) => {
+      s.clip = e.target.value;
+      s.time = 0;
+      s.wait = 0;
+      s.playing = !!s.clip;
+    });
+  $('facePlay').onclick = () =>
+    edit((s, face) => {
+      if (!face.clip) return;
+      if (!s.playing && s.time >= face.clip.duration) s.time = 0;
+      if (!s.playing) s.wait = 0;
+      s.playing = !s.playing;
+    });
+  $('faceTime').oninput = (e) =>
+    edit((s) => {
+      s.time = Number(e.target.value);
+      s.wait = 0;
+      s.playing = false;
+    });
+  $('faceStrength').oninput = (e) =>
+    edit((s) => {
+      s.strength = Number(e.target.value) / 100;
+    });
+  $('faceDelay').onchange = (e) =>
+    edit((s) => {
+      if (Number.isFinite(e.target.valueAsNumber)) s.delay = clamp(e.target.valueAsNumber, 0, 3600);
+    });
+  for (const [key, input] of [
+    ['loop', 'faceLoop'],
+    ['blink', 'faceBlink'],
+    ['breath', 'faceBreath']
+  ])
+    $(input).onchange = (e) =>
+      edit((s) => {
+        s[key] = e.target.checked;
+      });
+  $('faceCamera').onclick = () => stage.faceCloseup(chosen());
+}
+function soundClockUI(track) {
+  const duration = track.duration,
+    time = track.time;
+  $('soundTime').value = String(time);
+  $('soundClock').textContent = time.toFixed(2) + ' / ' + duration.toFixed(2) + ' s';
+  $('soundPlay').textContent = track.run ? '暂停声音' : '播放声音';
+}
+function syncSound(actor) {
+  const track = actor.sound,
+    library = $('soundAsset'),
+    cues = $('soundCue');
+  if (!library.options.length) {
+    const groups = new Map();
+    for (const clip of sounds.clips.values()) {
+      if (!groups.has(clip.group)) {
+        const section = document.createElement('optgroup');
+        section.label = clip.group;
+        library.append(section);
+        groups.set(clip.group, section);
+      }
+      groups
+        .get(clip.group)
+        .append(option(clip.id, clip.label + (clip.candidate ? '（高潮段候选）' : '')));
+    }
+  }
+  const entries = track.state.cues;
+  if (entries.length) {
+    const selected = Math.min(actor.soundSelection || 0, entries.length - 1);
+    actor.soundSelection = selected;
+    cues.replaceChildren(
+      ...entries.map((cue, i) =>
+        option(String(i), cue.at.toFixed(2) + ' s · ' + sounds.clips.get(cue.id).label)
+      )
+    );
+    cues.value = String(selected);
+    $('soundDelay').value = Number(entries[selected].at.toFixed(3));
+    $('soundGain').value = Math.round(entries[selected].gain * 100);
+  } else cues.replaceChildren(option('', '尚未添加声音'));
+  cues.disabled = !entries.length;
+  $('soundCueEditor').hidden = !entries.length;
+  $('soundTime').max = String(track.duration || 1);
+  $('soundTime').disabled = $('soundPlay').disabled = !entries.length;
+  $('soundLoop').checked = track.state.loop;
+  soundClockUI(track);
+}
+function bindSound() {
+  const edit = (adjust) =>
+    safely(() => {
+      const a = chosen();
+      if (!a?.sound || locked) return;
+      adjust(a.sound, a);
+      syncSound(a);
+    });
+  $('soundPreview').onclick = safely(() => sounds.preview($('soundAsset').value));
+  $('soundAdd').onclick = edit((track, a) => {
+    a.soundSelection = track.add($('soundAsset').value);
+  });
+  $('soundCue').onchange = edit((_, a) => {
+    a.soundSelection = Number($('soundCue').value);
+  });
+  $('soundDelay').onchange = edit((track, a) =>
+    track.update(a.soundSelection, { at: $('soundDelay').valueAsNumber })
+  );
+  $('soundGain').onchange = edit((track, a) =>
+    track.update(a.soundSelection, { gain: $('soundGain').valueAsNumber / 100 })
+  );
+  $('soundRemove').onclick = edit((track, a) => track.update(a.soundSelection, null));
+  $('soundTime').oninput = edit((track) => track.seek(Number($('soundTime').value)));
+  $('soundLoop').onchange = edit((track) => {
+    track.pause();
+    track.state.loop = $('soundLoop').checked;
+  });
+  $('soundPlay').onclick = safely(async () => {
+    const a = chosen();
+    if (!a?.sound || locked) return;
+    if (a.sound.run) a.sound.pause();
+    else {
+      sounds.stopPreview();
+      await a.sound.play();
+    }
+    if (chosen() === a) syncSound(a);
+  });
+  $('playCombo').onclick = playCombo;
+  $('pauseCombo').onclick = () => {
+    for (const a of visible()) {
+      a.state.playing = false;
+      if (a.face) a.face.state.playing = false;
+      a.sound.pause();
+      a.comboClock = null;
+    }
+    sounds.stopPreview();
+    if (chosen()) syncAll();
+  };
+}
+function playCombo() {
+  if (locked || !chosen()) return;
+  const cast = visible();
+  const cues = cast.flatMap((a) => a.sound.state.cues.map((c) => c.id));
+  working('正在准备搭配…', async () => {
+    sounds.stopPreview();
+    for (const a of cast) a.sound.pause();
+    if (cues.length) {
+      await sounds.unlock();
+      await sounds.preload(cues);
+    }
+    stopWalk();
+    mode = 'pose';
+    const delay = cues.length ? 0.065 : 0;
+    const audioStart = (sounds.context?.currentTime || 0) + delay;
+    const animationStart = performance.now() + delay * 1000;
+    for (const a of cast) {
+      a.state.time = 0;
+      a.state.dir = 1;
+      a.state.playing = a.duration > 0;
+      if (a.face) {
+        a.face.state.time = 0;
+        a.face.state.playing = !!a.face.clip;
+        a.face.state.wait = a.face.clip ? a.face.state.delay : 0;
+      }
+      a.comboClock = { audioStart, animationStart, useAudioClock: cues.length > 0, elapsed: 0 };
+      a.sound.start(audioStart, 0);
+      a.apply();
+    }
+    syncAll();
+  });
+}
+function pauseAllAudio() {
+  sounds?.stopPreview();
+  for (const a of actors.values()) {
+    a.sound.pause();
+    a.comboClock = null;
+  }
+}
+async function createActor(state) {
+  const actor = await Actor.create(state, progress);
+  actor.sound = new SoundTrack(actor.state, sounds);
+  return actor;
 }
 function selectClip(name) {
   const a = chosen();
@@ -314,7 +552,7 @@ async function add(type) {
     const state = fresh(type, uid(), label);
     const prev = chosen();
     state.p = [(prev?.root.position.x || 0) + 0.9, 0, prev?.root.position.z || 0];
-    const a = await Actor.create(state, progress);
+    const a = await createActor(state);
     actors.set(state.id, a);
     stage.add(a);
     selected = state.id;
@@ -350,7 +588,7 @@ function sceneData() {
     mode,
     group,
     camera: stage.snapshot(),
-    actors: all().map((a) => copy(a.state))
+    actors: all().map((a) => ({ ...copy(a.state), audio: a.sound.snapshot() }))
   };
 }
 function validState(s) {
@@ -381,7 +619,7 @@ async function restoreScene(data) {
     throw Error('场景版本或角色数据有误');
   const prepared = [];
   try {
-    for (const state of data.actors) prepared.push(await Actor.create(state, progress));
+    for (const state of data.actors) prepared.push(await createActor(state));
   } catch (e) {
     prepared.forEach((a) => a.dispose());
     throw e;
@@ -452,6 +690,38 @@ async function saveScene() {
   await refreshSlots();
   $('savedScenes').value = name;
   notify('已保存场景「' + name + '」');
+}
+async function importCombo(read) {
+  return working('正在导入搭配…', async () => {
+    const data = readCombination(await read());
+    await restoreScene(data.scene);
+    $('slotName').value = data.name;
+    setPane('sound');
+    notify('已导入搭配' + (data.name ? '「' + data.name + '」' : ''));
+  });
+}
+function bindFiles() {
+  $('exportCombo').onclick = safely(() => {
+    if (chosen() && exportCombination(saveName('搭配'), sceneData())) notify('已导出搭配文件');
+  });
+  $('importCombo').onclick = () => {
+    if (window.SeseSceneFiles) window.SeseSceneFiles.requestImport();
+    else $('sceneFile').click();
+  };
+  $('sceneFile').onchange = (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (file) importCombo(() => readBrowserFile(file));
+  };
+  window.studioFileNotice = notify;
+  window.studioPauseAudio = pauseAllAudio;
+  window.studioReadScene = (path) =>
+    importCombo(async () => {
+      if (!/^\/__imported_scene\/[\da-f-]+$/.test(path)) throw Error('无法读取搭配文件');
+      const response = await fetch(path, { cache: 'no-store' });
+      if (!response.ok) throw Error('无法读取搭配文件');
+      return response.text();
+    });
 }
 async function saveAction() {
   const a = chosen();
@@ -566,7 +836,11 @@ function joystick() {
     'ShiftRight'
   ];
   window.addEventListener('keydown', (e) => {
-    if (mode !== 'walk' || e.target.matches('input,select,textarea') || !directions.includes(e.code))
+    if (
+      mode !== 'walk' ||
+      e.target.matches('input,select,textarea') ||
+      !directions.includes(e.code)
+    )
       return;
     e.preventDefault();
     keysHeld.add(e.code);
@@ -576,6 +850,7 @@ function joystick() {
   document.addEventListener('visibilitychange', () => {
     resetStick();
     lastFrame = 0;
+    if (document.hidden) pauseAllAudio();
   });
 }
 function gait(a, dt) {
@@ -621,16 +896,35 @@ function loop(ms) {
   const dt = lastFrame ? Math.min(0.12, (ms - lastFrame) / 1000) : 0;
   lastFrame = ms;
   for (const a of actors.values()) {
-    if (!a.root.visible) continue;
-    if (mode === 'walk' && a.state.id === 'lead' && !locked) gait(a, dt);
-    else if (!locked) a.transport(dt);
+    a.sound.tick();
+    if (!a.root.visible || locked) continue;
+    let step = dt;
+    const clock = a.comboClock;
+    if (clock) {
+      const elapsed = clock.useAudioClock
+        ? sounds.context.currentTime - clock.audioStart
+        : (ms - clock.animationStart) / 1000;
+      if (elapsed < 0) continue;
+      step = Math.max(0, elapsed - clock.elapsed);
+      clock.elapsed = elapsed;
+      if (!a.sound.run && !a.state.playing && !a.face?.state.playing) a.comboClock = null;
+    }
+    const changedFace = a.face?.advance(step);
+    if (mode === 'walk' && a.state.id === 'lead') gait(a, step);
+    else if (a.state.playing && a.duration > 0) a.transport(step);
+    else if (changedFace) a.refreshExpression();
   }
   if (wasRunning && mode === 'pose' && pane === 'motion') clockUI();
+  if (pane === 'face' && active?.face) faceClockUI(active.face);
+  if (pane === 'sound' && active?.sound) soundClockUI(active.sound);
   if (mode === 'walk' && pane === 'transform') readPosition();
   stage.draw(actors.values(), chosen(), mode === 'pose');
 }
 function bind() {
   controls();
+  bindFace();
+  bindSound();
+  bindFiles();
   joystick();
   $('walk').onclick = () => setMode('walk');
   $('pose').onclick = $('editPose').onclick = () => {
@@ -652,13 +946,18 @@ function bind() {
     setPane('library');
   };
   $('togglePanel').onclick = () => panel($('panel').hidden);
-  document.querySelectorAll('[data-pane]').forEach((b) => (b.onclick = () => setPane(b.dataset.pane)));
+  document
+    .querySelectorAll('[data-pane]')
+    .forEach((b) => (b.onclick = () => setPane(b.dataset.pane)));
   document
     .querySelectorAll('[data-view]')
     .forEach(
       (b) =>
         (b.onclick = () =>
-          stage.frame(b.dataset.view === 'fit' ? visible() : [chosen()].filter(Boolean), b.dataset.view))
+          stage.frame(
+            b.dataset.view === 'fit' ? visible() : [chosen()].filter(Boolean),
+            b.dataset.view
+          ))
     );
   $('actor').onchange = (e) => chooseActor(e.target.value);
   $('addZ').onclick = () => add('zhenfu');
@@ -738,6 +1037,7 @@ async function start() {
     e.preventDefault();
     contextLost = true;
     resetStick();
+    pauseAllAudio();
     $('busy').hidden = false;
     progress('正在恢复图形画面…');
   });
@@ -748,6 +1048,7 @@ async function start() {
   });
   requestAnimationFrame(loop);
   await working('正在加载甄芙…', async () => {
+    sounds = await loadSoundBank();
     const pending = await db.peek('settings', 'resume');
     if (pending) {
       // Clear before decoding so that an interrupted high-resolution load can fall back next launch.
@@ -771,7 +1072,7 @@ async function start() {
       localStorage.removeItem('pose.texture.rollback');
       $('quality').value = rollback;
     }
-    const a = await Actor.create(fresh('zhenfu', 'lead', '甄芙'), progress);
+    const a = await createActor(fresh('zhenfu', 'lead', '甄芙'));
     actors.set('lead', a);
     stage.add(a);
     syncAll();

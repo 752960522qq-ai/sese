@@ -52,7 +52,8 @@
         <div id="casting"><button id="addZ">＋ 甄芙</button><button id="addL">＋ 里昂</button></div>
         <nav class="tabs" aria-label="编辑工具">
           <button data-pane="motion" aria-pressed="true">动作</button
-          ><button data-pane="transform">位置</button><button data-pane="library">存档</button>
+          ><button data-pane="face">表情</button><button data-pane="sound">声音</button>
+          <button data-pane="transform">位置</button><button data-pane="library">存档</button>
         </nav>
         <div class="scroll-panel">
           <section id="pane-motion">
@@ -67,7 +68,15 @@
               <div class="time-label">
                 <label for="time">动作进度</label><output id="timeText">0.00 s</output>
               </div>
-              <input id="time" aria-label="动作进度" type="range" min="0" max="1" step="any" value="0" />
+              <input
+                id="time"
+                aria-label="动作进度"
+                type="range"
+                min="0"
+                max="1"
+                step="any"
+                value="0"
+              />
               <div class="row transport">
                 <button id="prev" aria-label="上一帧">−1 帧</button
                 ><button class="primary" id="play">播放</button
@@ -102,9 +111,89 @@
                   <button id="record">记录关键帧</button><button id="removeKey">撤回一帧</button>
                 </div>
                 <div class="row">
-                  <span id="keyCount">0 个关键帧</span><button id="previewKeys">预览自编动作</button>
+                  <span id="keyCount">0 个关键帧</span
+                  ><button id="previewKeys">预览自编动作</button>
                 </div>
               </details>
+            </div>
+          </section>
+          <section id="pane-face" hidden>
+            <label for="expressionClip">甄芙表情</label>
+            <select id="expressionClip"></select>
+            <div class="time-label">
+              <label for="faceTime">表情进度</label><output id="faceClock"></output>
+            </div>
+            <input id="faceTime" type="range" min="0" max="1" step="any" value="0" />
+            <div class="row face-transport">
+              <button id="facePlay" class="primary">播放表情</button>
+              <label><input id="faceLoop" type="checkbox" checked />循环</label>
+            </div>
+            <div class="time-label">
+              <label for="faceStrength">表情强度</label><output id="faceAmount"></output>
+            </div>
+            <input id="faceStrength" type="range" min="0" max="100" step="1" value="100" />
+            <div class="sound-fields">
+              <label
+                >搭配起始秒数<input
+                  id="faceDelay"
+                  type="number"
+                  min="0"
+                  max="3600"
+                  step=".01"
+                  inputmode="decimal"
+              /></label>
+            </div>
+            <div class="face-options">
+              <label><input id="faceBlink" type="checkbox" checked />自然眨眼</label>
+              <label><input id="faceBreath" type="checkbox" checked />胸廓呼吸</label>
+            </div>
+            <button id="faceCamera" class="wide">面部近景</button>
+          </section>
+          <section id="pane-sound" hidden>
+            <div class="row">
+              <button id="playCombo" class="primary" title="从头播放场上角色的动作、表情和声音">
+                播放搭配
+              </button>
+              <button id="pauseCombo">暂停搭配</button>
+            </div>
+            <label for="soundAsset">声音素材</label>
+            <select id="soundAsset"></select>
+            <div class="row sound-tools">
+              <button id="soundPreview">试听素材</button
+              ><button id="soundAdd">添加到当前时间</button>
+            </div>
+            <label for="soundCue">当前角色的声音</label>
+            <select id="soundCue"></select>
+            <div id="soundCueEditor" hidden>
+              <div class="sound-fields">
+                <label
+                  >起始秒数<input
+                    id="soundDelay"
+                    type="number"
+                    min="0"
+                    max="3600"
+                    step=".01"
+                    inputmode="decimal"
+                /></label>
+                <label
+                  >音量 %<input
+                    id="soundGain"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    inputmode="numeric"
+                /></label>
+              </div>
+              <button id="soundRemove" class="text-button">移除此声音</button>
+            </div>
+            <div class="time-label">
+              <label for="soundTime">声音进度</label><output id="soundClock"></output>
+            </div>
+            <input id="soundTime" type="range" min="0" max="1" step="any" value="0" />
+            <div class="row face-transport">
+              <button id="soundPlay">播放声音</button>
+              <label><input id="soundLoop" type="checkbox" />循环</label>
             </div>
           </section>
           <section id="pane-transform" hidden>
@@ -146,9 +235,11 @@
               <button class="primary" id="saveScene">保存场景</button
               ><button id="saveAction">保存角色动作</button>
             </div>
-            <p>
-              场景保存所有角色、动作进度、位置和镜头。有关键帧时会保存整段自编动作，可套用到同模型的其他角色。
-            </p>
+            <div class="row sound-tools">
+              <button id="exportCombo">导出搭配</button><button id="importCombo">导入搭配</button>
+              <input id="sceneFile" type="file" accept=".json,application/json" hidden />
+            </div>
+            <p>搭配文件保存各角色的动作、表情、声音、位置和镜头，可导入后继续编辑。</p>
             <label for="savedScenes">已存场景</label>
             <div class="row">
               <select id="savedScenes"></select

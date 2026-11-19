@@ -371,6 +371,43 @@ summary {
 #recordBox .row {
   margin: 6px 0;
 }
+.face-options,
+.face-transport {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 5px 0 12px;
+}
+.face-options label,
+.face-transport label {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  min-height: 32px;
+}
+.face-options input,
+.face-transport input {
+  accent-color: var(--lime);
+}
+.sound-tools {
+  margin: 7px 0;
+}
+.sound-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 7px 0 0;
+}
+.sound-fields label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.sound-fields input {
+  width: 100%;
+  min-width: 0;
+}
 .axis {
   display: grid;
   grid-template-columns: 31px 1fr 37px;

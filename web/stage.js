@@ -85,7 +85,11 @@ export class Stage {
   }
   add(actor) {
     this.scene.add(actor.root);
-    const mat = new T.MeshBasicMaterial({ map: this.shadowMap, transparent: true, depthWrite: false });
+    const mat = new T.MeshBasicMaterial({
+      map: this.shadowMap,
+      transparent: true,
+      depthWrite: false
+    });
     actor.shadow = new T.Mesh(new T.PlaneGeometry(1.05, 1.05), mat);
     actor.shadow.rotation.x = -Math.PI / 2;
     actor.shadow.position.y = -0.01;
@@ -127,7 +131,8 @@ export class Stage {
       a.shadow.material.opacity = Math.max(0.22, 1 - Math.abs(a.root.position.y) * 0.65);
     }
     this.ring.visible = editing && !!selected;
-    if (selected) this.ring.position.set(selected.root.position.x, -0.006, selected.root.position.z);
+    if (selected)
+      this.ring.position.set(selected.root.position.x, -0.006, selected.root.position.z);
     this.renderer.render(this.scene, this.camera);
   }
   frame(list, view = 'fit') {
@@ -171,6 +176,24 @@ export class Stage {
     this.camera.position.z += dz;
     this.controls.target.x += dx;
     this.controls.target.z += dz;
+  }
+  faceCloseup(actor) {
+    const head = actor?.bones.get('head');
+    if (!head) return;
+    actor.root.updateMatrixWorld(true);
+    const eyeL = actor.bones.get('jointEyeLeft').getWorldPosition(new T.Vector3());
+    const eyeR = actor.bones.get('jointEyeRight').getWorldPosition(new T.Vector3());
+    const chin = actor.bones.get('chin_M').getWorldPosition(new T.Vector3());
+    const target = eyeL.lerp(eyeR, 0.5).lerp(chin, 0.24);
+    const front = new T.Vector3(0.07, 0.035, 1)
+      .applyQuaternion(head.getWorldQuaternion(new T.Quaternion()))
+      .normalize();
+    this.controls.target.copy(target);
+    this.camera.position
+      .copy(target)
+      .addScaledVector(front, Math.max(0.43, 0.28 / this.camera.aspect));
+    this.controls.update();
+    this.dirty = true;
   }
   snapshot() {
     return { p: this.camera.position.toArray(), target: this.controls.target.toArray() };

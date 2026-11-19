@@ -3,6 +3,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 test -f app/src/main/assets/models/leon/actor.gltf
 test -f app/src/main/assets/models/zhenfu/actor.gltf
+test -f app/src/main/assets/audio/cues.json || { echo 'Run tools/prepare_audio.py with the reviewed sound ZIP first.' >&2; exit 1; }
+node tools/build-expressions.mjs
 cp -R web/. app/src/main/assets/
 bash tools/android-shell.sh
 sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?Set ANDROID_HOME}}"
