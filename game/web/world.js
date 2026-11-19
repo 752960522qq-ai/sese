@@ -4,47 +4,15 @@ import {OrbitControls} from './vendor/controls/OrbitControls.js';
 import {Actor,fresh} from './rig.js';
 import {SoundTrack,loadSoundBank} from './sounds.js';
 import {glbClip} from './clip-file.js';
+import {applyWardrobe,disposeWardrobe} from './wardrobe.js';
 
 const radians=T.MathUtils.degToRad, point=new T.Vector3(), down=new T.Vector3(0,-1,0);
-const own=new WeakMap(), sky=0xc3d6df;
+const sky=0xc3d6df;
 const near=(b,x,z)=>Math.hypot(Math.max(b[0][0]-x,0,x-b[1][0]),Math.max(b[0][2]-z,0,z-b[1][2]));
-const wearFiles=Promise.all([
-  fetch('./models/zhenfu/wardrobe.json').then(r=>r.json()),
-  fetch('./models/zhenfu/coverage.bin').then(r=>r.arrayBuffer()).then(b=>new Uint8Array(b))
-]);
-async function dress(actor,clothes){
-  if(actor.type!=='zhenfu')return;
-  const [wardrobe,bytes]=await wearFiles, flags=7+(clothes.stockings?8:0)+(clothes.pumps?16:0);
-  actor.model.traverse(m=>{
-    if(!m.isSkinnedMesh)return;
-    const tag=m.userData;
-    if(tag.gameWear==='stockings')m.visible=clothes.stockings&&(!tag.wearPart.includes('_Heel_')||clothes.pumps)&&(!tag.wearPart.includes('_Flat_')||!clothes.pumps);
-    if(tag.gameWear==='pumps')m.visible=clothes.pumps;
-    if(!tag.gameBody)return;
-    let g=own.get(m);
-    if(!g){
-      const original=m.geometry,index=original.index;
-      const info=wardrobe.bodyMasks.find(mask=>mask.triangles===index.count/3);if(!info)return;
-      // Index buffers are private per actor. Preserve its live morph-driver attributes.
-      const geo=new T.BufferGeometry();
-      for(const [key,a] of Object.entries(original.attributes))geo.setAttribute(key,a);
-      geo.morphAttributes=original.morphAttributes;geo.morphTargetsRelative=original.morphTargetsRelative;
-      geo.boundingBox=original.boundingBox;geo.boundingSphere=original.boundingSphere;m.geometry=geo;
-      g={geo,index,info,variants:new Map()};own.set(m,g);
-    }
-    if(!g.variants.has(flags)){
-      const mask=bytes.subarray(g.info.at,g.info.at+g.info.triangles),keep=[];
-      for(let i=0;i<mask.length;i++)if(!(mask[i]&flags))keep.push(g.index.getX(i*3),g.index.getX(i*3+1),g.index.getX(i*3+2));
-      g.variants.set(flags,new T.BufferAttribute(new g.index.array.constructor(keep),1));
-    }
-    g.geo.setIndex(g.variants.get(flags));
-  });
-  actor.model.position.y=clothes.pumps?wardrobe.shoeLiftMetres:0;
+function dress(actor,clothes){
+  return applyWardrobe(actor,7+(clothes.stockings?8:0)+(clothes.pumps?16:0));
 }
-function release(actor){
-  actor.model.traverse(m=>{const data=own.get(m);if(data){data.geo.dispose();own.delete(m);}});
-  actor.dispose();
-}
+function release(actor){disposeWardrobe(actor);actor.dispose();}
 export class CityWorld{
   constructor(canvas,notify) {
     this.notify=notify;this.canvas=canvas;this.scene=new T.Scene();
@@ -133,7 +101,7 @@ export class CityWorld{
   }
   async travel(p){
     const old=this.pos.clone();this.pos.fromArray(p);
-    try{await this.stream(true);const floor=this.grounds(this.pos.x,this.pos.z,this.pos.y,7);if(floor===null)throw Error('目的地不在可行走地面上');this.pos.y=floor;}
+    try{await this.stream(true);const floor=this.grounds(this.pos.x,this.pos.z,this.pos.y,.45)??this.grounds(this.pos.x,this.pos.z,this.pos.y,7);if(floor===null)throw Error('目的地不在可行走地面上');this.pos.y=floor;}
     catch(e){this.pos.copy(old);this.stream().catch(()=>{});throw e;}
     this.hero.state.p=this.pos.toArray();this.hero.state.yaw=180;this.hero.walk('Idle',0);
     this.resetCamera();this.shadow.position.copy(this.pos);this.shadow.position.y+=.03;

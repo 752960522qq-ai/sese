@@ -49,7 +49,7 @@ export function documentLevel(data) {
   if(!object(data)||data.type!=='sese-story-level'||data.version!==1)fail('不支持此关卡格式或版本');
   const n=data.nodes;
   if(!id(data.id)||!str(data.title)||!id(data.start)||!object(n)||!Object.hasOwn(n,data.start)||Object.keys(n).length>800)fail('关卡标识、标题或起始节点有误');
-  if(data.city!=='hero13-v23'||!vec(data.spawn,3))fail('城市须为 hero13-v23，出生点须为三维坐标');
+  if(!['hero13-v23','hero13-v24'].includes(data.city)||!vec(data.spawn,3))fail('城市须为 hero13-v23 或 hero13-v24，出生点须为三维坐标');
   const links=[], refs=new Set();
   for(const [key,node] of Object.entries(n)){
     if(!id(key)||!object(node))fail('节点无效 '+key);

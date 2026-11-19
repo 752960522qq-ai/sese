@@ -106,7 +106,8 @@ function openMenu(which){
     btn('导入文件',()=>$('files').click(),'primary');btn('返回手记',()=>openMenu('home'));
   }
   if(which==='map'){
-    panel('HERO_13  /  城市 v23','街区地图','点选街区可自由抵达。剧情会保留当前节点。');
+    panel('HERO_13  /  城市 v'+world.index.version,'街区地图','点选街区可自由抵达。剧情会保留当前节点。');
+    for(const place of world.index.landmarks||[])btn(place.name,()=>freeWalk(place.position,place.district),'subtle',$('content'));
     const grid=el('div','mapGrid');$('content').append(grid);
     for(let i=1;i<=18;i++){
       const samples=world.index.roadSamples[String(i)],b=btn(String(i).padStart(2,'0')+' '+districtNames[i-1],()=>freeWalk(i===7?startPos:samples[Math.floor(samples.length/2)],i),i===currentDistrict?'current':'',grid);if(!samples.length)b.disabled=true;

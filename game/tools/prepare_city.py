@@ -1,4 +1,4 @@
-"""Bake the three hero_13 v23 ZIPs into mobile streaming tiles in original glTF coordinates."""
+"""Bake the city packages and optional v24 district replacement in their original coordinates."""
 import argparse
 import ctypes as ct
 import hashlib
@@ -59,6 +59,13 @@ class Simplifier:
 def surface(name, district):
     low=name.lower()
     if district==18 or 'water_surface' in low: return 'water'
+    if district==7:
+        if low.startswith(('d07_hotel24_', 'hotel parcel |', 'hotel arrival |')): return 'walk'
+        if low.startswith('ps23_') and ('floor' in low or '_rug' in low): return 'walk'
+        if any(label in low for label in ('structural slab with purpose-made', 'stone structural tread',
+                'solid warm timber tread', 'stair | landing oak', 'stair | threshold plate',
+                'stair | transverse turning landing', 'hot-dip galvanized grate', 'slab joint',
+                'step-free apron')): return 'walk'
     if district==17 and not any(v in low for v in ('rail','pier','support','cable','parapet')): return 'walk'
     if any(v in low for v in ('sculpted_terrain','ground_','road_kit','pavement','sidewalk','entrance_walk','landscape_grade','connector','driveway','ramp','roadway','bridge_deck','terrazzo slabs','forecourt |','parking |','floor |','slab |','curb_cut','road_mark','road_','access walk','site slab','floor datum','entry landing','graded_ground','pedestrian path','entry approach')):
         return 'walk'
@@ -173,23 +180,48 @@ class District:
 def main():
     args=argparse.ArgumentParser()
     args.add_argument('zips',type=Path);args.add_argument('output',type=Path);args.add_argument('meshopt',type=Path)
-    p=args.parse_args();out=p.output;out.mkdir(parents=True,exist_ok=True);(out/'tex').mkdir(exist_ok=True)
+    args.add_argument('--district-update',type=Path,help='Official hero13 v24 district 07 overlay ZIP')
+    p=args.parse_args();out=p.output
+    out.mkdir(parents=True,exist_ok=True);(out/'tex').mkdir(exist_ok=True)
     simp=Simplifier(p.meshopt);tiles=[];anchors={};sources=[]
     paths=sorted(p.zips.glob('hero13_city_v23_*.zip'))
     if len(paths)!=3:raise ValueError('需要城市 A、B、C 三个包')
+    districts={};expected={};version=23
+    if p.district_update:
+        with zipfile.ZipFile(p.district_update) as z:
+            manifest=json.loads(z.read('hero13_city_v24_full_manifest.json'))
+            expected={row['id']:row for row in manifest['districts']}
+            if sorted(expected)!=list(range(1,19)) or manifest['changed_district_ids']!=[7]:
+                raise ValueError('v24 城市清单不完整')
+        paths.append(p.district_update);version=24
     for path in paths:
         with zipfile.ZipFile(path) as z:
             for entry in z.namelist():
-                if entry.startswith('credits/') and not entry.endswith('/'):
+                if entry.startswith('credits/') and not entry.endswith('/') and '..' not in Path(entry).parts:
                     dest=out/entry;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(z.read(entry))
-            for name in z.namelist():
-                if not re.fullmatch(r'districts/\d\d_[^/]+\.glb',name):continue
-                raw=z.read(name);district=int(Path(name).name[:2]);d=District(raw,district,out,simp)
-                batch=d.bake();tiles.extend(batch);anchors[str(district)]=d.anchors
-                total=sum(t['triangles'] for t in batch)
-                sources.append({'district':district,'source':Path(name).name,'sha256':hashlib.sha256(raw).hexdigest(),'sourceTriangles':d.faces,'mobileTriangles':total})
-                print(district,len(batch),d.faces,total,flush=True)
-                del d,raw
-    if sorted(x['district'] for x in sources)!=list(range(1,19)):raise ValueError('缺少城市区块')
-    (out/'index.json').write_text(json.dumps({'version':23,'tiles':tiles,'roadSamples':anchors,'sources':sources},separators=(',',':')))
+                if not re.fullmatch(r'districts/\d\d_[^/]+\.glb',entry):continue
+                district=int(Path(entry).name[:2])
+                if path==p.district_update:
+                    if district!=7 or district not in districts:raise ValueError('v24 替换区块无效')
+                elif district in districts:raise ValueError('重复基础区块')
+                districts[district]=(path,entry)
+    if sorted(districts)!=list(range(1,19)):raise ValueError('缺少城市区块')
+    for district,(path,entry) in sorted(districts.items()):
+        with zipfile.ZipFile(path) as z: raw=z.read(entry)
+        sha=hashlib.sha256(raw).hexdigest()
+        if expected and (expected[district]['file']!=Path(entry).name or expected[district]['sha256']!=sha):
+            raise ValueError('区块源文件与 v24 正式清单不一致 '+str(district))
+        d=District(raw,district,out,simp);batch=d.bake()
+        tiles.extend(batch);anchors[str(district)]=d.anchors
+        total=sum(t['triangles'] for t in batch)
+        sources.append({'district':district,'source':Path(entry).name,'sha256':sha,'sourceTriangles':d.faces,'mobileTriangles':total})
+        print(district,len(batch),d.faces,total,flush=True)
+        del d,raw
+    index={'version':version,'tiles':tiles,'roadSamples':anchors,'sources':sources}
+    if version==24:
+        index['landmarks']=[
+            {'name':'云庭酒店 · 正门','district':7,'position':[264,16.78,-691.2]},
+            {'name':'云庭酒店 · 总统套房','district':7,'position':[266,102.66,-711.0]}
+        ]
+    (out/'index.json').write_text(json.dumps(index,ensure_ascii=False,separators=(',',':')))
 if __name__=='__main__':main()
