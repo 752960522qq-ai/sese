@@ -1,6 +1,7 @@
 import * as T from './vendor/three.module.min.js';
 import { Actor, fresh, characterNames, clipNames, sortedJoints, clamp } from './rig.js';
 import { Stage } from './stage.js';
+import { applyWardrobe } from './wardrobe.js';
 import { loadSoundBank, SoundTrack } from './sounds.js';
 import { exportCombination, readCombination, readBrowserFile } from './scene-file.js';
 import * as db from './storage.js';
@@ -144,6 +145,8 @@ function syncAll() {
   syncVisible();
   $('actor').replaceChildren(...all().map((item) => option(item.state.id, item.state.label)));
   $('actor').value = selected;
+  $('outfitRow').hidden = a.type !== 'zhenfu';
+  $('outfitPreview').value = String(a.state.previewOutfit ?? 31);
   const tracks = [...a.source.clips.keys()].sort((x, y) => {
     const nx = /^\d+$/.test(x),
       ny = /^\d+$/.test(y);
@@ -406,6 +409,9 @@ function pauseAllAudio() {
 }
 async function createActor(state) {
   const actor = await Actor.create(state, progress);
+  try {
+    await applyWardrobe(actor, actor.state.previewOutfit ?? 31);
+  } catch (e) { actor.dispose(); throw e; }
   actor.sound = new SoundTrack(actor.state, sounds);
   return actor;
 }
@@ -998,6 +1004,23 @@ function bind() {
     if (chosen()) chosen().state.rate = Number(e.target.value);
   };
   $('joint').onchange = readJoint;
+  $('outfitPreview').onchange = safely(async () => {
+    const a = chosen(), flags = Number($('outfitPreview').value);
+    if (!a || a.type !== 'zhenfu' || ![0, 15, 31].includes(flags)) return;
+    await applyWardrobe(a, flags);
+    a.state.previewOutfit = flags;
+  });
+  $('frameJoint').onclick = () => {
+    const a = chosen(), bone = a?.bones.get($('joint').value);
+    if (!bone) return;
+    a.root.updateMatrixWorld(true);
+    const point = bone.getWorldPosition(new T.Vector3());
+    const direction = stage.camera.position.clone().sub(stage.controls.target).normalize();
+    stage.controls.target.copy(point);
+    stage.camera.position.copy(point).addScaledVector(direction, 0.48);
+    stage.controls.update();
+    stage.dirty = true;
+  };
   $('jointReset').onclick = () => {
     const a = chosen();
     if (!a) return;

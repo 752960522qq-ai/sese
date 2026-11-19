@@ -45,7 +45,7 @@ export function freshLevel(id) {
     version: 1,
     id,
     title: '新剧情',
-    city: 'hero13-v23',
+    city: 'hero13-v24',
     spawn: [...defaultSpawn],
     start: 'intro',
     nodes: {

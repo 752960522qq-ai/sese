@@ -7,6 +7,11 @@ test -f app/src/main/assets/audio/cues.json || { echo 'Run tools/prepare_audio.p
 archive_lib=node_modules/three/examples/jsm/libs/fflate.module.js
 if [[ -f "$archive_lib" ]]; then cp "$archive_lib" app/src/main/assets/vendor/fflate.module.js; fi
 test -s app/src/main/assets/vendor/fflate.module.js || { echo 'Install the pinned three dependency for the ZIP reader.' >&2; exit 1; }
+python3 tools/rig_controls.py app/src/main/assets/models
+if [[ -n "${POSE_WARDROBE:-}" ]]; then
+    python3 tools/prepare_wardrobe.py "$POSE_WARDROBE" app/src/main/assets/models/zhenfu
+fi
+test -s app/src/main/assets/models/zhenfu/dressed.gltf || { echo 'Set POSE_WARDROBE to the R05 wardrobe ZIP.' >&2; exit 1; }
 node tools/build-expressions.mjs
 cp -R web/. app/src/main/assets/
 bash tools/android-shell.sh

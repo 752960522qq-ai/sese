@@ -9,7 +9,7 @@ import { clips } from './expression-curves.mjs';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const folder = resolve(root, 'app/src/main/assets/models/zhenfu');
 const src = JSON.parse(readFileSync(resolve(folder, 'actor.gltf'), 'utf8'));
-const rig = readFileSync(resolve(folder, src.buffers[0].uri));
+const buffers = src.buffers.map(buffer => readFileSync(resolve(folder, buffer.uri)));
 const skin = src.skins[0],
   component = { SCALAR: 1, VEC3: 3, VEC4: 4, MAT4: 16 };
 const local = (n, p) =>
@@ -22,7 +22,7 @@ function readFloats(index) {
   const at = (view.byteOffset || 0) + (a.byteOffset || 0),
     step = view.byteStride || size * 4;
   return Array.from({ length: a.count }, (_, i) =>
-    Array.from({ length: size }, (_, j) => rig.readFloatLE(at + i * step + 4 * j))
+    Array.from({ length: size }, (_, j) => buffers[view.buffer].readFloatLE(at + i * step + 4 * j))
   );
 }
 const parts = [],

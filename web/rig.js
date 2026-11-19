@@ -2,6 +2,7 @@ import * as T from './vendor/three.module.min.js';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { useOriginalWeights } from './skin.js';
 import { attachMorphs } from './morph.js';
+import { disposeWardrobe } from './wardrobe.js';
 import { loadExpressions, ExpressionLayer } from './expressions.js';
 
 export const characterNames = { zhenfu: '甄芙', leon: '里昂' };
@@ -20,6 +21,9 @@ export const clipNames = {
 };
 const aliases = [
   ['骨盆', 'Hips', 'COG'],
+  ['阴茎根部', 'ZF_Penis_Root', 'Leon_Penis_Root'],
+  ['阴茎中段', 'ZF_Penis_Mid', 'Leon_Penis_Mid'],
+  ['阴茎前端', 'ZF_Penis_Tip', 'Leon_Penis_Tip'],
   ['腰部', 'Spine', 'spine_0'],
   ['胸部', 'Spine2', 'spine_2'],
   ['颈部', 'Neck', 'neck_0'],
@@ -75,7 +79,7 @@ async function template(type, progress) {
   if (snapshots.has(type)) return snapshots.get(type);
   const request = (async () => {
     const base = './models/' + type + '/',
-      res = await fetch(base + 'actor.gltf');
+      res = await fetch(base + (type === 'zhenfu' ? 'dressed.gltf' : 'actor.gltf'));
     if (!res.ok) throw Error('无法读取角色模型');
     const spec = await res.json(),
       sizes = new Map(spec.images.map((i) => [i.uri, i.extras.studioSize]));
@@ -418,6 +422,7 @@ export class Actor {
     this.root.rotation.y = deg(s.yaw + a.yaw + turn * f - first.yaw);
   }
   dispose() {
+    disposeWardrobe(this);
     this.sound?.pause();
     for (const driver of this.deformers) driver.dispose();
     this.mixer.stopAllAction();
