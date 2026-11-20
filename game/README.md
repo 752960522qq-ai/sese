@@ -1,6 +1,6 @@
 # 甄芙 · 城市篇
 
-独立的离线 Android 游戏，包名 `studio.sese.citygame`，版本 0.2.0。Android 9 及以上，使用支持 WebGL 2 的 Android System WebView。动作制作工具「姿态排练室」1.3.0 使用 `studio.sese.pose`，两个应用可以同时安装。
+独立的离线 Android 游戏，包名 `studio.sese.citygame`，版本 0.3.0。Android 9 及以上，使用支持 WebGL 2 的 Android System WebView。动作制作工具「姿态排练室」1.4.0 使用 `studio.sese.pose`，两个应用可以同时安装。
 
 ## 《明天就订车》第一章
 
@@ -10,13 +10,13 @@
 
 ## 开始游戏
 
-「第七区碰面」从东风汽车销售中心门前开始。步行镜头默认在甄芙身后 2.3 米。左下摇杆移动，外圈奔跑，拖动街景转动镜头，双指缩放。「手记」中可继续剧情、自由探索、跳转到各区道路以及换装。公共水面随街区加载。城市场景来自 hero_13 v24。第七区包含东风汽车销售中心和云庭酒店，街区地图可直达酒店正门与 23 层总统套房。18 个区块保留原坐标，并针对手机做了减面、贴图缩放和分块加载。运行时检查街面高度及建筑阻挡。
+「第七区碰面」从东风汽车销售中心门前开始。步行镜头默认在甄芙身后 2.3 米。左下摇杆移动，外圈奔跑，拖动街景转动镜头，双指缩放。「手记」中可继续剧情、自由探索、跳转到各区道路以及换装。公共水面随街区加载。城市场景来自 hero_13 v24。第七区包含东风汽车销售中心和云庭酒店，街区地图可直达酒店正门与 23 层总统套房。第六区新增澜庭海景餐厅。地图可直达正门、大厅、包厢门口与露台。18 个区块保留原坐标，并针对手机做了减面、贴图缩放和分块加载。运行时检查街面高度及建筑阻挡。
 
 甄芙使用 R19 素体和 R06 职业装。甄芙、里昂各有根部、中段、前端三个连续的阴茎骨骼，主游戏可播放动作制作 APK 录制的三轴旋转。黑色浅口高跟鞋使每名对手防御乘 0.95，黑色长筒丝袜使每名对手攻速乘 1.03、甄芙防御乘 1.07。服饰选择在开始对局时生效。
 
 ## 导入与联调
 
-1. 在「姿态排练室」1.3.0 中打开「剧情制作」，导入模板并编排动作，点「导出主游戏文件」取得关卡及引用的动作。「存档」也可单独导出一个角色的 `.action.json` 或多人搭配 `.sese.json`。
+1. 在「姿态排练室」1.4.0 中打开「剧情制作」，导入模板并编排动作，点「导出主游戏文件」取得关卡及引用的动作。「存档」也可单独导出一个角色的 `.action.json` 或多人搭配 `.sese.json`。
 2. 在游戏中打开「手记 → 关卡与动作 → 导入文件」。可以一次选择多份 JSON 或 GLB。首次使用配套示例时，先将 ZIP 解压，并多选目录里的 JSON。示例文件也已预装。
 3. 在「剧情」中点开关卡。文件导入顺序任意，关卡会列出尚缺的依赖。更新动作时导入同名文件，更新关卡时保持关卡 ID。文件存放在应用私有数据库中。相同批次有无效数据时，整批不写入。
 4. 「三人模块联调」依次播放单角色到场动作、载入三人搭配、显示三条独立数值条。点对手名字切换主要作用目标。默认两名对手分别是对手甲、对手乙。成品演出可以直接替换这一组示例站位。
@@ -36,7 +36,7 @@
 
 ### 道具柔性碰撞
 
-排练室导出的碰撞轨迹会随动作播放。甄芙的开口和相连内壁跟随接触形状变形，碰撞体撤出后回弹。每个角色副本独立响应场上的碰撞体。
+排练室导出的碰撞轨迹会随动作播放。甄芙的开口和相连内壁跟随接触形状变形，碰撞体撤出后回弹。每个角色副本独立响应场上的碰撞体。甄芙与两版里昂的骨骼驱动三段胶囊，可触发另一位甄芙的柔性碰撞。
 
 自编动作可在角色的 `contactBodies` 中定义道具，GLB 可在相应片段的 `animations[].extras.contactBodies` 中设置同一结构。以下为一根胶囊沿轴线移出的例子，距离单位为米，时间单位为秒。
 
@@ -62,7 +62,7 @@
 
 ### 剧情节点
 
-关卡使用 `version: 1`、稳定的 `id`、`title`、`city: "hero13-v24"`、米制 glTF 坐标 `spawn: [x,y,z]`、`start` 及以 ID 为键的 `nodes`。对白和站位采用 UTF-8 JSON。旧关卡可继续使用 `hero13-v23`。
+关卡使用 `version: 1`、稳定的 `id`、`title`、`city: "hero13-v27"`、米制 glTF 坐标 `spawn: [x,y,z]`、`start` 及以 ID 为键的 `nodes`。对白和站位采用 UTF-8 JSON。旧关卡可继续使用 v23 至 v26 的城市标记。
 
 | kind | 主要字段 | 完成条件 |
 | --- | --- | --- |
@@ -100,10 +100,10 @@
 
 ```sh
 export ASSET_DIR="$PWD/build/city-assets" GAME_BUILD_DIR="$PWD/build/city-apk"
-python3 game/tools/prepare_city.py /path/to/hero13-v23-zips "$ASSET_DIR/city" /path/to/libmeshoptimizer.so --district-update /path/to/hero13_city_v24_07_酒店区块更新.zip
+python3 game/tools/prepare_city.py /path/to/hero13-v26-zips "$ASSET_DIR/city" /path/to/libmeshoptimizer.so --district-update /path/to/hero13_city_v27_D06_LanTing.zip
 python3 game/tools/prepare_cast.py /path/to/PoseStudio-1.3.0.apk /path/to/Zhenfu_Officewear_R06_Preview.zip "$ASSET_DIR" /path/to/libmeshoptimizer.so
 python3 game/tools/prepare_vehicle.py /path/to/hero13_city_v24_07_酒店区块更新.zip "$ASSET_DIR/vehicles/dealer-suv.glb"
 bash game/tools/build.sh
 ```
 
-城市底包为 `hero13_city_v23_A_01-04.zip`、`hero13_city_v23_B_05-08.zip`、`hero13_city_v23_C_09-18.zip`，叠加 v24 第七区更新包后，构建器会用官方清单校验全部 18 个原始区块。从已交付游戏 APK 恢复 `assets/` 时，可将其作为 ASSET_DIR。用上方的 `prepare_city.py` 和 `prepare_cast.py` 重建酒店楼层与碰撞索引、套裙、贴合腿部的丝袜和臀部内壁。角色缓存中的 `wardrobe.json` 会标记本次适配版本 `skirt-knit-3`。成品在 GAME_BUILD_DIR 的 `Zhenfu-City-0.2.0.apk`。默认使用本机测试证书，可用 GAME_KEYSTORE、GAME_KEY_ALIAS、GAME_KEY_PASS 指定发行证书。城市场景和车辆的署名收录在 APK 的 `assets/city/credits/`。
+v26 城市目录需包含 A、B、C 三个 ZIP 与 `hero13_city_v26_manifest.json`。准备工具按清单验证分包和 18 个区块，将第六区替换成 v27 澜庭更新。仍可从包含配套角色版本的旧安装包恢复其他素材。成品位于 GAME_BUILD_DIR 的 `Zhenfu-City-0.3.0.apk`。可通过 GAME_KEYSTORE、GAME_KEY_ALIAS 和 GAME_KEY_PASS 指定签名证书。城市场景和车辆的署名收录在 APK 的 `assets/city/credits/`。

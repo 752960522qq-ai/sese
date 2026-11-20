@@ -10,6 +10,7 @@ api="$ANDROID_HOME/platforms/android-35/android.jar"
 mkdir -p "$GAME_BUILD_DIR"/{classes,dex} "$ASSET_DIR/examples"
 test -f "$ASSET_DIR/city/index.json" && test -f "$ASSET_DIR/models/zhenfu/wardrobe.json"
 test -s "$ASSET_DIR/models/leonSuit/actor.gltf" && test -s "$ASSET_DIR/vehicles/dealer-suv.glb"
+python3 "$repo/tools/prepare_body_contacts.py" "$ASSET_DIR/models"
 cp "$src"/web/* "$ASSET_DIR/"
 cp "$repo"/web/{rig.js,skin.js,morph.js,pelvic-motion.js,expressions.js,scene-file.js,sounds.js,wardrobe.js,hosiery.js,skirt-fit.js,soft-rim.js,contact-world.js} "$ASSET_DIR/"
 cp "$src"/examples/*.json "$ASSET_DIR/examples/"
@@ -37,5 +38,5 @@ if [[ ! -f "$store" && -z "${GAME_KEYSTORE:-}" ]]; then
     mkdir -p "$(dirname "$store")"
     keytool -genkeypair -keystore "$store" -storepass:env GAME_KEY_PASS -keypass:env GAME_KEY_PASS -alias "$alias" -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Android Debug,O=Android,C=US'
 fi
-"$bt/apksigner" sign --ks "$store" --ks-key-alias "$alias" --ks-pass env:GAME_KEY_PASS --v2-signing-enabled true --v3-signing-enabled true --v4-signing-enabled false --out "$GAME_BUILD_DIR/Zhenfu-City-0.2.0.apk" "$GAME_BUILD_DIR/aligned.apk"
-"$bt/apksigner" verify --verbose "$GAME_BUILD_DIR/Zhenfu-City-0.2.0.apk"
+"$bt/apksigner" sign --ks "$store" --ks-key-alias "$alias" --ks-pass env:GAME_KEY_PASS --v2-signing-enabled true --v3-signing-enabled true --v4-signing-enabled false --out "$GAME_BUILD_DIR/Zhenfu-City-0.3.0.apk" "$GAME_BUILD_DIR/aligned.apk"
+"$bt/apksigner" verify --verbose "$GAME_BUILD_DIR/Zhenfu-City-0.3.0.apk"

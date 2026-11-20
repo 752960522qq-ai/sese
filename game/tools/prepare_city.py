@@ -59,6 +59,13 @@ class Simplifier:
 
 def surface(name, district):
     low=name.lower()
+    if district==6:
+        if low.startswith(('lt • flooring |','lanting_site_low_coastal_platform','lanting_site_arrival_courtyard',
+                           'lanting_site_main_stone_avenue','lanting_site_quiet_service_access',
+                           'lanting_site_walk_at_coastal_road','lanting_pavement_and_promenade')):
+            return 'walk'
+        if low.startswith('lt • terrace |') and ('teak' in low or 'floor' in low or 'basalt' in low):
+            return 'walk'
     if district==18 or 'water_surface' in low: return 'water'
     if district==7:
         if low.startswith(('d07_hotel24_', 'hotel parcel |', 'hotel arrival |', 'optional | street apron subbase', 'pedestrian crossing |', 'dropoff | granite setts')): return 'walk'
@@ -104,7 +111,7 @@ class District:
         self.doc=json.loads(raw[20:20+jlen]); self.blob=memoryview(raw)[28+jlen:]
         self.num=number;self.out=out;self.simplify=simplify
         self.bins=defaultdict(lambda:defaultdict(list))
-        self.mats={};self.images={};self.faces=0;self.anchors=[]
+        self.mats={};self.images={};self.faces=0;self.anchors=[];self.landmarks=[]
     def material(self, number):
         if number in self.mats:return self.mats[number]
         src=self.doc.get('materials',[])[number] if number>=0 else {}
@@ -125,7 +132,7 @@ class District:
                 key=hashlib.sha256(data).hexdigest()[:24]+'.'+fmt
                 path=self.out/'tex'/key
                 if not path.exists():
-                    image.thumbnail((640,640),Image.Resampling.LANCZOS)
+                    image.thumbnail((1024,1024),Image.Resampling.LANCZOS)
                     image.convert('RGBA' if transparent else 'RGB').save(path,quality=84,optimize=True)
                 self.images[source]='tex/'+key
             tex=self.images[source]
@@ -136,6 +143,9 @@ class District:
         name=n.get('name','')
         if self.num==7:
             level=hotel_level(name,level)
+        if self.num==6 and name in LANTING_MARKERS:
+            self.landmarks.append({'name':LANTING_MARKERS[name],'district':6,
+                                   'position':np.round(m[:3,3],4).tolist(),'marker':name})
         if 'mesh' in n:
             kind=surface(name,self.num)
             for prim in doc['meshes'][n['mesh']]['primitives']:
@@ -147,6 +157,8 @@ class District:
                 target=before
                 if kind=='solid' and before>350:
                     target=max(260,min(5400,round(before*(0.26 if self.num==7 else 0.18))))
+                if self.num==6 and name.startswith(('LT •','Lanting_')) and before>350:
+                    target=max(target,min(before,max(6000,round(before*.60))))
                 elif kind=='walk' and before>15000: target=max(4500,round(before*.53))
                 tri=self.simplify.run(faces,local,target).astype(np.int64,copy=False)
                 if not len(tri):continue
@@ -214,23 +226,53 @@ class District:
         for root in self.doc['scenes'][self.doc.get('scene',0)]['nodes']:self.node(root,np.eye(4))
         return [self.tile(cell,batch) for cell,batch in self.bins.items()]
 
+LANTING_MARKERS={'LT_ENTRY_PUBLIC':'澜庭海景餐厅 · 正门','LT_GALLERY':'澜庭海景餐厅 · 大厅',
+                 'LT_VIP_DOOR':'澜庭海景餐厅 · 包厢门口','LT_TERRACE_VIEW':'澜庭海景餐厅 · 露台'}
+
+def city_inputs(folder, overlay):
+    full=folder/'hero13_city_v26_manifest.json'
+    expected={};replacement=None
+    if full.exists():
+        manifest=json.loads(full.read_bytes())
+        if manifest['revision']!='v26':raise ValueError('城市基础清单版本不匹配')
+        version=26
+        expected={d['id']:dict(d) for d in manifest['districts']}
+        paths=[folder/p['name'] for p in manifest['packs']]
+        for path,pack in zip(paths,manifest['packs']):
+            with path.open('rb') as stream:
+                if hashlib.file_digest(stream,'sha256').hexdigest()!=pack['sha256']:
+                    raise ValueError('城市分包校验不符 '+path.name)
+    else:
+        version=23
+        paths=sorted(folder.glob('hero13_city_v23_*.zip'))
+    if len(paths)!=3:raise ValueError('需要城市 A、B、C 三个完整分包')
+    if overlay:
+        with zipfile.ZipFile(overlay) as patch:
+            if version==26:
+                data=json.loads(patch.read('LanTing_D06_manifest.json'))
+                row=data['archive_district']
+                if data['replace_only_district']!=6 or row['v26_district_sha256']!=expected[6]['sha256']:
+                    raise ValueError('澜庭补丁与基础第六区不匹配')
+                replacement=6;version=27
+                expected[6]={**row,'file':Path(row['file']).name}
+            else:
+                data=json.loads(patch.read('hero13_city_v24_full_manifest.json'))
+                if data['changed_district_ids']!=[7]:raise ValueError('酒店补丁无效')
+                expected={r['id']:r for r in data['districts']}
+                replacement=7;version=24
+        paths.append(overlay)
+    if expected and sorted(expected)!=list(range(1,19)):raise ValueError('城市区块清单不完整')
+    return paths,version,expected,replacement
+
 def main():
     args=argparse.ArgumentParser()
     args.add_argument('zips',type=Path);args.add_argument('output',type=Path);args.add_argument('meshopt',type=Path)
-    args.add_argument('--district-update',type=Path,help='Official hero13 v24 district 07 overlay ZIP')
+    args.add_argument('--district-update',type=Path,help='Official v24 hotel or v27 LanTing overlay, for its matching base')
     p=args.parse_args();out=p.output
     out.mkdir(parents=True,exist_ok=True);(out/'tex').mkdir(exist_ok=True)
     simp=Simplifier(p.meshopt);tiles=[];anchors={};sources=[]
-    paths=sorted(p.zips.glob('hero13_city_v23_*.zip'))
-    if len(paths)!=3:raise ValueError('需要城市 A、B、C 三个包')
-    districts={};expected={};version=23
-    if p.district_update:
-        with zipfile.ZipFile(p.district_update) as z:
-            manifest=json.loads(z.read('hero13_city_v24_full_manifest.json'))
-            expected={row['id']:row for row in manifest['districts']}
-            if sorted(expected)!=list(range(1,19)) or manifest['changed_district_ids']!=[7]:
-                raise ValueError('v24 城市清单不完整')
-        paths.append(p.district_update);version=24
+    paths,version,expected,replacement=city_inputs(p.zips,p.district_update)
+    districts={};landmarks=[]
     for path in paths:
         with zipfile.ZipFile(path) as z:
             for entry in z.namelist():
@@ -239,7 +281,7 @@ def main():
                 if not re.fullmatch(r'districts/\d\d_[^/]+\.glb',entry):continue
                 district=int(Path(entry).name[:2])
                 if path==p.district_update:
-                    if district!=7 or district not in districts:raise ValueError('v24 替换区块无效')
+                    if district!=replacement or district not in districts:raise ValueError('替换区块编号不匹配')
                 elif district in districts:raise ValueError('重复基础区块')
                 districts[district]=(path,entry)
     if sorted(districts)!=list(range(1,19)):raise ValueError('缺少城市区块')
@@ -247,18 +289,20 @@ def main():
         with zipfile.ZipFile(path) as z: raw=z.read(entry)
         sha=hashlib.sha256(raw).hexdigest()
         if expected and (expected[district]['file']!=Path(entry).name or expected[district]['sha256']!=sha):
-            raise ValueError('区块源文件与 v24 正式清单不一致 '+str(district))
+            raise ValueError('区块源文件与正式清单不一致 '+str(district))
         d=District(raw,district,out,simp);batch=d.bake()
-        tiles.extend(batch);anchors[str(district)]=d.anchors
+        tiles.extend(batch);anchors[str(district)]=d.anchors;landmarks.extend(d.landmarks)
         total=sum(t['triangles'] for t in batch)
         sources.append({'district':district,'source':Path(entry).name,'sha256':sha,'sourceTriangles':d.faces,'mobileTriangles':total})
         print(district,len(batch),d.faces,total,flush=True)
         del d,raw
     index={'version':version,'tiles':tiles,'roadSamples':anchors,'sources':sources}
-    if version==24:
+    if version>=24:
         index['landmarks']=[
             {'name':'云庭酒店 · 正门','district':7,'position':[264,16.78,-691.2]},
             {'name':'云庭酒店 · 总统套房','district':7,'position':[266,102.66,-711.0]}
-        ]
+        ]+landmarks
+    if version==27 and {m['marker'] for m in landmarks}!=set(LANTING_MARKERS):
+        raise ValueError('第六区缺少餐厅地标')
     (out/'index.json').write_text(json.dumps(index,ensure_ascii=False,separators=(',',':')))
 if __name__=='__main__':main()
