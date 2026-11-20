@@ -9,11 +9,26 @@ DTYPE = {5120:'i1', 5121:'u1', 5122:'<i2', 5123:'<u2', 5125:'<u4', 5126:'<f4'}
 
 def values(doc, buffers, index):
     a = doc['accessors'][index]
-    v = doc['bufferViews'][a['bufferView']]
-    t = np.dtype(DTYPE[a['componentType']])
-    n = WIDTH[a['type']]
-    return np.ndarray((a['count'],n),t,buffers[v['buffer']],v.get('byteOffset',0)+a.get('byteOffset',0),
-                      (v.get('byteStride',n*t.itemsize),t.itemsize))
+    dtype = np.dtype(DTYPE[a['componentType']])
+    width = WIDTH[a['type']]
+    if 'bufferView' in a:
+        v = doc['bufferViews'][a['bufferView']]
+        data = np.ndarray((a['count'], width), dtype, buffers[v['buffer']],
+                          v.get('byteOffset', 0)+a.get('byteOffset', 0),
+                          (v.get('byteStride', width*dtype.itemsize), dtype.itemsize))
+    else:
+        data = np.zeros((a['count'], width), dtype)
+    sparse = a.get('sparse')
+    if sparse:
+        def read(part, storage_type, components):
+            spec = sparse[part]
+            view = doc['bufferViews'][spec['bufferView']]
+            start = view.get('byteOffset', 0) + spec.get('byteOffset', 0)
+            return np.frombuffer(buffers[view['buffer']], storage_type, sparse['count']*components, start)
+        ids = read('indices', DTYPE[sparse['indices']['componentType']], 1)
+        data = data.copy()
+        data[ids] = read('values', dtype, width).reshape(-1, width)
+    return data
 
 def garment(archive, name):
     raw = archive.read(name)
@@ -33,6 +48,37 @@ def add_attribute(doc, binary, data, kind, component):
     doc['bufferViews'].append(dict(buffer=len(doc['buffers'])-1,byteOffset=offset,byteLength=data.nbytes,target=34962))
     doc['accessors'].append(dict(bufferView=view,count=len(data),componentType=component,type=kind))
     return len(doc['accessors'])-1
+
+def sparse_attribute(doc, binary, accessor, ids, data):
+    # glTF sparse overlays let the rest of the original body keep its buffers.
+    accessor = dict(accessor)
+    index_type = 5123 if accessor['count']<65536 else 5125
+    def view(array, component):
+        packed = np.ascontiguousarray(array, dtype=DTYPE[component])
+        binary.extend(bytes((-len(binary))%4))
+        doc['bufferViews'].append(dict(buffer=len(doc['buffers'])-1, byteOffset=len(binary), byteLength=packed.nbytes))
+        binary.extend(packed.tobytes())
+        return len(doc['bufferViews'])-1
+    accessor['sparse'] = dict(count=len(ids), indices=dict(bufferView=view(ids, index_type), componentType=index_type),
+                              values=dict(bufferView=view(data, accessor['componentType'])))
+    doc['accessors'].append(accessor)
+    return len(doc['accessors'])-1
+
+def write_morph(doc, binary, delta):
+    delta = delta.astype('<f4')
+    info = dict(type='VEC3', componentType=5126, count=len(delta), min=delta.min(0).tolist(), max=delta.max(0).tolist())
+    ids = np.flatnonzero(np.any(delta!=0, axis=1))
+    return sparse_attribute(doc, binary, info, ids, delta[ids])
+
+def dense_weights(joints, weights, count):
+    dense = np.zeros((len(joints), count))
+    np.add.at(dense, (np.arange(len(joints))[:, None], joints), weights)
+    return dense
+
+def four_weights(dense):
+    joints = np.argsort(-dense, axis=1, kind='stable')[:, :4]
+    weights = np.take_along_axis(dense, joints, axis=1)
+    return joints, weights/weights.sum(1)[:, None]
 
 class OfficeFit:
     def __init__(self, doc, folder, archive, manifest):
@@ -83,6 +129,93 @@ class OfficeFit:
         for side,sign in [('Left',1),('Right',-1)]:
             keep=sign*pos[:,0]>=0
             self.donor[side]=(cKDTree(pos[keep]),joints[keep],weights[keep])
+
+    def fit_interior(self, binary):
+        exterior = next(p for m in self.doc['meshes'] for p in m['primitives']
+                        if self.doc['materials'][p['material']]['name'] == 'Body_Skin_4K')
+        inner = next(p for m in self.doc['meshes'] for p in m['primitives']
+                     if self.doc['materials'][p['material']]['name'] == 'Anatomy_Rim_and_Interior_4K')
+        attr = inner['attributes']
+        points = values(self.doc, self.body, attr['POSITION'])
+        skin = values(self.doc, self.body, exterior['attributes']['POSITION'])
+        distance, match = cKDTree(skin).query(points)
+        rim = distance < .00005
+        if not rim.any():
+            raise ValueError('内部网格与骨盆体表没有共用边缘')
+        rim_tree = cKDTree(points[rim])
+        depth, neighbours = rim_tree.query(points, k=6)
+        nearest = depth[:, 0]
+        blend_weights = 1/np.maximum(depth, .000001)**2
+        blend_weights /= blend_weights.sum(1)[:, None]
+        deep = smooth(0, .013, nearest)[:, None]
+        # Both sides of the narrow lip share some of their neighbours' load.
+        # At 16 mm the exterior is back to its original character weights.
+        inner_blend = .5*(1-smooth(.004, .016, nearest))[:, None]
+        outer_dist = rim_tree.query(skin)[0]
+        near_ids = np.flatnonzero(outer_dist < .016)
+        outer_blend = .5*(1-smooth(.004, .016, outer_dist[near_ids]))[:, None]
+        count = len(self.body_joints)
+        outer = exterior['attributes']
+        dense = dense_weights(values(self.doc, self.body, attr['JOINTS_0']),
+                              values(self.doc, self.body, attr['WEIGHTS_0']), count)
+        shared = dense[rim].mean(axis=0)
+        fitted = dense*(1-deep) + shared*deep
+        joints, weights = four_weights(fitted*(1-inner_blend) + shared*inner_blend)
+        attr['JOINTS_0'] = add_attribute(self.doc, binary, joints, 'VEC4', 5123)
+        attr['WEIGHTS_0'] = add_attribute(self.doc, binary, weights, 'VEC4', 5126)
+        local = dense_weights(values(self.doc, self.body, outer['JOINTS_0'])[near_ids],
+                              values(self.doc, self.body, outer['WEIGHTS_0'])[near_ids], count)
+        outer_j, outer_w = four_weights(local*(1-outer_blend) + shared*outer_blend)
+        for key, data in [('JOINTS_0', outer_j), ('WEIGHTS_0', outer_w)]:
+            base = self.doc['accessors'][outer[key]]
+            if 'sparse' in base:
+                full = values(self.doc, self.body, outer[key]).copy()
+                full[near_ids] = data
+                outer[key] = add_attribute(self.doc, binary, full, 'VEC4', base['componentType'])
+            else:
+                outer[key] = sparse_attribute(self.doc, binary, base, near_ids, data)
+        # The four hip correctives move the surface lip by up to several mm.
+        # Preserve that movement on both sides of the weld and taper it inside.
+        taper = (1-smooth(.004, .026, nearest))[:, None]
+        for outer_target, inner_target in zip(exterior.get('targets', []), inner.get('targets', [])):
+            outer_delta = values(self.doc, self.body, outer_target['POSITION']).copy()
+            rim_delta = outer_delta[match[rim]]
+            if not np.any(rim_delta):
+                continue
+            mean = rim_delta.mean(0)
+            delta = (rim_delta[neighbours]*blend_weights[:, :, None]).sum(1)*taper
+            delta[rim] = rim_delta
+            delta += values(self.doc, self.body, inner_target['POSITION'])*(1-taper)
+            delta += (mean-delta)*inner_blend
+            outer_delta[near_ids] += (mean-outer_delta[near_ids])*outer_blend
+            outer_target['POSITION'] = write_morph(self.doc, binary, outer_delta)
+            inner_target['POSITION'] = write_morph(self.doc, binary, delta)
+        # Only the deep wall retracts on hip flexion. The welded border stays put.
+        shift = (points[rim].mean(axis=0) - points) * (.60 * deep)
+        attr['_INNERFOLD'] = add_attribute(self.doc, binary, shift, 'VEC3', 5126)
+
+    def skirt_probes(self):
+        # Sample the outside of both thighs and the pelvis, including the original
+        # corrective shapes. Coincident vertices at the leg graft need one sample.
+        groups, clouds = [], []
+        for group, mesh in enumerate(self.doc['meshes']):
+            for p in mesh['primitives']:
+                if self.doc['materials'][p['material']]['name'] not in ('Body_Skin_4K', 'WholeLegs_Rebound_Skin_Matched'):
+                    continue
+                pos = values(self.doc, self.body, p['attributes']['POSITION'])
+                used = np.unique(values(self.doc, self.body, p['indices']))
+                ids = used[(pos[used, 1] > .53) & (pos[used, 1] < 1.15) & (np.abs(pos[used, 0]) < .226)]
+                if len(ids):
+                    groups.append((group, len(pos), ids))
+                    clouds.append(pos[ids])
+        _, selected = np.unique(np.rint(np.concatenate(clouds)/.022).astype('i4'), axis=0, return_index=True)
+        rows = []
+        offset = 0
+        for group, count, ids in groups:
+            kept = selected[(selected >= offset) & (selected < offset+len(ids))] - offset
+            rows.append(dict(group=group, count=count, ids=ids[kept].tolist()))
+            offset += len(ids)
+        return rows
 
     def retain_thighs(self, mask, manifest):
         bit=next(i['bit'] for i in manifest['items'] if i['key']=='skirt')

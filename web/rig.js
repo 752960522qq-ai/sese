@@ -2,6 +2,7 @@ import * as T from './vendor/three.module.min.js';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { useOriginalWeights } from './skin.js';
 import { attachMorphs } from './morph.js';
+import { createPelvicMotion, fitPelvicInterior } from './pelvic-motion.js';
 import { disposeWardrobe } from './wardrobe.js';
 import { loadExpressions, ExpressionLayer } from './expressions.js';
 
@@ -161,12 +162,17 @@ async function template(type, progress) {
     if (errors.length) throw errors[0];
     if (type !== 'zhenfu') useOriginalWeights(gltf.scene);
     gltf.scene.traverse((n) => {
-      if (n.isSkinnedMesh) n.frustumCulled = false;
+      if (n.isSkinnedMesh) {
+        n.frustumCulled = false;
+        if (type === 'zhenfu') fitPelvicInterior(n);
+      }
     });
     const metadata = new Map(spec.animations.map((a) => [a.name, a.extras || {}]));
     const expressions = type === 'zhenfu' ? await loadExpressions(base + 'expressions.glb') : null;
     return {
       scene: gltf.scene,
+      neutralOutfitClips: new Set(gltf.animations.filter(c=>
+        ['Idle','APose','Face_Test','Blink','BrowRaise','Smile','JawOpen'].includes(c.name))),
       clips: new Map(gltf.animations.map((c) => [c.name, c])),
       metadata,
       expressions
@@ -250,6 +256,7 @@ export class Actor {
     this.activeName = '';
     this.lastMotion = null;
     this.face = source.expressions ? new ExpressionLayer(this, source.expressions) : null;
+    this.pelvicMotion=createPelvicMotion(this);
     this.apply();
   }
   get duration() {
@@ -262,6 +269,7 @@ export class Actor {
     return Number(meta.fps || meta.sample_rate || meta.fps_assumption) || 30;
   }
   stopOffsets() {
+    this.pelvicMotion?.restore();
     for (const [bone, previous] of this.applied) bone.quaternion.copy(previous);
     this.applied.length = 0;
   }
@@ -278,7 +286,7 @@ export class Actor {
     });
   }
   setClip(name) {
-    if (this.activeName === name) return;
+    if (this.activeName === name && (this.action?.getClip()??null)===(this.source.clips.get(name)??null)) return;
     this.stopOffsets();
     if (this.action) this.action.stop();
     this.restPose();
@@ -291,21 +299,23 @@ export class Actor {
       this.action.paused = true;
     }
   }
+  get playbackMode() {
+    const name=this.state.clip, meta=this.source.metadata.get(name)||{};
+    if(meta.loopMode==='pingpong'||(this.type==='zhenfu'&&/^\d{3}$/.test(name)&&!meta.loop&&!meta.static_pose))return 'reflect';
+    return name==='@keys'||meta.static_pose?'once':'loop';
+  }
   transport(dt) {
     const s = this.state,
       d = this.duration;
     if (!s.playing || d <= 0) return;
-    const meta = this.source.metadata.get(s.clip) || {},
-      back =
-        meta.loopMode === 'pingpong' ||
-        (this.type === 'zhenfu' && /^\d{3}$/.test(s.clip) && !meta.loop && !meta.static_pose);
+    const mode=this.playbackMode;
     const t = s.time + dt * s.rate * s.dir;
     if (t > d || t < 0) {
-      if (back) {
+      if (mode==='reflect') {
         const phase = ((t % (2 * d)) + 2 * d) % (2 * d);
         s.time = phase > d ? 2 * d - phase : phase;
         s.dir = (phase > d ? -1 : 1) * s.dir;
-      } else if (s.clip === '@keys' || meta.static_pose) {
+      } else if (mode==='once') {
         s.time = clamp(t, 0, d);
         s.playing = false;
       } else {
@@ -325,6 +335,7 @@ export class Actor {
       this.mixer.update(0);
     }
     this.place();
+    if(this.action)this.pelvicMotion?.apply(this.action.getClip(),null,this.action.time,'loop');
     for (const driver of this.deformers) driver.update();
     this.face?.apply();
   }
@@ -332,7 +343,7 @@ export class Actor {
     this.root.position.fromArray(this.state.p);
     this.root.rotation.y = deg(this.state.yaw);
   }
-  apply() {
+  apply(playbackMode=this.playbackMode) {
     const s = this.state;
     this.revision++;
     this.face?.restore();
@@ -351,6 +362,7 @@ export class Actor {
       this.applied.push([b, b.quaternion.clone()]);
       b.quaternion.multiply(q0.setFromEuler(euler.set(...angles.map(deg), 'XYZ'))).normalize();
     }
+    this.pelvicMotion?.apply(this.action?.getClip(),s.clip==='@keys'?s.keys:null,s.time,playbackMode,s.dir,s.offsets);
     this.face?.apply();
   }
   refreshExpression() {
@@ -369,7 +381,7 @@ export class Actor {
         v = {};
       for (const [key, arr] of [
         ['p', b.position.toArray()],
-        ['q', b.quaternion.toArray()],
+        ['q', (this.pelvicMotion?.authored.get(b)??b.quaternion).toArray()],
         ['s', b.scale.toArray()]
       ]) {
         if (changed(arr, r[key])) v[key] = compact(arr);
