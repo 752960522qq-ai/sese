@@ -1,4 +1,5 @@
 import {ShowroomCar} from './vehicle.js';
+import {ContactWorld,checkContactAnchors} from './contact-world.js';
 import {CityCollision} from './collision.js';
 import * as T from './vendor/three.module.min.js';
 import {GLTFLoader} from './vendor/loaders/GLTFLoader.js';
@@ -22,7 +23,7 @@ function dress(actor,clothes){
 function release(actor){disposeWardrobe(actor);actor.dispose();}
 export class CityWorld{
   constructor(canvas,notify) {
-    this.notify=notify;this.canvas=canvas;this.scene=new T.Scene();
+    this.notify=notify;this.canvas=canvas;this.scene=new T.Scene();this.contacts=new ContactWorld(this.scene);
     this.scene.background=new T.Color(sky);this.scene.fog=new T.Fog(sky,92,245);
     this.renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
     this.renderer.setPixelRatio(Math.min(1.35,window.devicePixelRatio||1));
@@ -208,6 +209,7 @@ export class CityWorld{
   }
   async clothesTo(c){this.clothes={...c};await Promise.all([this.hero,...this.cast].filter(Boolean).map(a=>dress(a,c)));}
   clearShow(){
+    this.hero?.softRim?.reset();
     this.car.hide();if(this.companion)this.companion.root.visible=false;
     this.showToken++;for(const a of this.cast)if(a!==this.hero)release(a);else a.sound?.pause();this.cast=[];this.group.clear();this.walking=true;
     if(this.hero){this.hero.source=this.baseSource;this.hero.state={...this.heroState,p:this.pos.toArray(),yaw:this.walkYaw??180};this.scene.add(this.hero.root);this.hero.face?.restore();this.hero.walk('Idle',this.stepTime);}
@@ -228,6 +230,7 @@ export class CityWorld{
         const s={...original};
         const reuse=loop&&roleList&&s.id===roleList[0].id&&s.type===this.hero.type;
         const a=reuse?this.hero:await Actor.create(s,()=>{});prepared.push(a);
+        if(reuse)checkContactAnchors(a,s.contactBodies);
         if(reuse){a.sound?.pause();a.state={...s};a.face?.restore();if(a.face)a.face=new a.face.constructor(a,a.source.expressions);}
         else await dress(a,this.clothes);
         if(guess&&(!roleList||s.id===roleList.find(r=>r.model===guess.type)?.id)){
@@ -241,6 +244,7 @@ export class CityWorld{
       if(cues.length){await this.bank.unlock();await this.bank.preload(cues);}
       if(token!==this.showToken){prepared.filter(a=>a!==this.hero).forEach(release);return null;}
     }catch(e){prepared.filter(a=>a!==this.hero).forEach(release);throw e;}
+    this.hero?.softRim?.reset();
     this.cast.filter(a=>a!==this.hero).forEach(release);this.group.clear();this.cast=prepared;this.loopCast=loop;this.walking=false;
     this.hero.root.visible=prepared.includes(this.hero);this.shadow.visible=false;this.group.position.copy(this.pos);
     for(const a of prepared){this.group.add(a.root);if(a.sound.duration&&!loop)a.sound.start(this.bank.context.currentTime+.04,0);}

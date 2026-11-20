@@ -1,5 +1,6 @@
 import * as T from './vendor/three.module.min.js';
 import {GLTFLoader} from './vendor/loaders/GLTFLoader.js';
+import {validContactBodies} from './scene-file.js';
 const cache=new Map();
 let skeletons;
 function pieces(bytes) {
@@ -22,6 +23,11 @@ export async function inspectGlb(file){
     const targets=new Set(a.channels.filter(c=>['rotation','translation','scale'].includes(c.target.path)).map(c=>T.PropertyBinding.sanitizeNodeName(json.nodes[c.target.node]?.name||'')));
     const options=rigs.map(r=>({type:r.type,hits:[...targets].filter(name=>r.bones.has(name)).length})).sort((a,b)=>b.hits-a.hits);
     if(!options[0].hits||options[0].hits<targets.size*.5)return null;
+    const bodies=a.extras?.contactBodies,type=options[0].type;
+    if(!validContactBodies(bodies,type))throw Error('GLB 片段的碰撞体或轨迹无效');
+    const bones=rigs.find(r=>r.type===type).bones;
+    for(const b of bodies||[])if(!['rim','model'].includes(b.anchor)&&!bones.has(T.PropertyBinding.sanitizeNodeName(b.anchor)))
+      throw Error('角色缺少碰撞体锚点 '+b.anchor);
     return {name:a.name||'clip_'+i,index:i,type:options[0].type};
   }).filter(Boolean);
   if(!clips.length)throw Error('该 GLB 没有可映射到甄芙或里昂的同名骨骼片段');
@@ -47,6 +53,12 @@ export async function glbClip(record,which,actor) {
       animations:[{name:key,samplers:a.samplers,channels}]};
     const parsed=await new GLTFLoader().parseAsync(stripped,'');
     const clip=parsed.animations[0];if(!clip?.tracks.length)throw Error('动作没有可播放的骨骼轨道');
+    if(a.extras?.contactBodies){
+      if(!validContactBodies(a.extras.contactBodies,actor.type))throw Error('GLB 片段的碰撞体或轨迹无效');
+      for(const body of a.extras.contactBodies)if(!['model','rim'].includes(body.anchor)&&
+        !actor.bones.has(T.PropertyBinding.sanitizeNodeName(body.anchor)))throw Error('角色缺少碰撞体锚点 '+body.anchor);
+      clip.userData={contactBodies:a.extras.contactBodies};
+    }
     if(cache.size>12)cache.clear();cache.set(cacheKey,clip);return clip;
   }finally{URL.revokeObjectURL(uri);}
 }

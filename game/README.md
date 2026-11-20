@@ -34,6 +34,32 @@
 
 动作引用使用文件名，例如 `cast-three.sese.json`，多段 GLB 可写成 `idle.glb#Walk`。省略片段名时选择首个匹配骨架的片段。GLB 在多人模块里驱动首个匹配模型的角色，其余人保留站位。分别编排每位演员时使用编辑器搭配，且模块的每个 ID 和模型都须对应 `scene.actors` 里相同的 ID 和 type。编辑器的自定义 ID 可以直接从导出的 JSON 复制。
 
+### 道具柔性碰撞
+
+排练室导出的碰撞轨迹会随动作播放。甄芙的开口和相连内壁跟随接触形状变形，碰撞体撤出后回弹。每个角色副本独立响应场上的碰撞体。
+
+自编动作可在角色的 `contactBodies` 中定义道具，GLB 可在相应片段的 `animations[].extras.contactBodies` 中设置同一结构。以下为一根胶囊沿轴线移出的例子，距离单位为米，时间单位为秒。
+
+```json
+{
+  "contactBodies": [{
+    "id": "stool",
+    "shape": "capsule",
+    "anchor": "rim",
+    "a": [0, 0, -0.012],
+    "b": [0, 0, 0.012],
+    "radius": 0.013,
+    "keys": [
+      {"t": 0, "offset": [0, 0, 0.040]},
+      {"t": 0.6, "offset": [0, 0, 0]},
+      {"t": 1.4, "offset": [0, 0, -0.065]}
+    ]
+  }]
+}
+```
+
+`rim` 以甄芙的开口为原点，局部 Z 轴向内。也可使用 `model` 或角色骨名，将道具绑到其他角色。球体使用 `shape: "sphere"`，以 `a` 为球心。静止道具可以直接指定 `offset`。相邻位置点按动作时间线性插值，多个形状可分别填写唯一的 `id`。已有场景道具可调用 `world.contacts.addCollider(object3D, {shape, a, b, radius})`，端点相对道具自身，移除道具时调用返回的注销函数。
+
 ### 剧情节点
 
 关卡使用 `version: 1`、稳定的 `id`、`title`、`city: "hero13-v24"`、米制 glTF 坐标 `spawn: [x,y,z]`、`start` 及以 ID 为键的 `nodes`。对白和站位采用 UTF-8 JSON。旧关卡可继续使用 `hero13-v23`。

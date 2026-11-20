@@ -284,6 +284,7 @@ function loop(ms){
     }
   }
   if(!menu&&world.companion?.root.visible&&screen==='dialogue')world.companion.walk('Idle',ms/1000);
+  if(!menu&&!pending)world.contacts.step(world.walking?[world.hero,...(world.companion?[world.companion]:[])]:world.cast,dt);
   world.draw();
 }
 async function start(){

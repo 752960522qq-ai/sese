@@ -3,6 +3,21 @@ const LIMIT = 24 * 1024 * 1024;
 const vector = (v, n) => Array.isArray(v) && v.length === n && v.every(Number.isFinite);
 const object = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
+export function validContactBodies(bodies,type) {
+  if(bodies===undefined)return true;
+  if(!Array.isArray(bodies))return false;
+  const ids=new Set();
+  return bodies.every(b=>{
+    if(!object(b)||typeof b.id!=='string'||!b.id||ids.has(b.id)||typeof b.anchor!=='string'||!b.anchor||
+       (b.anchor==='rim'&&type!=='zhenfu')||!['sphere','capsule'].includes(b.shape)||
+       !Number.isFinite(b.radius)||b.radius<=0||!vector(b.a,3)||(b.shape==='capsule'&&!vector(b.b,3))||
+       (b.offset!==undefined&&!vector(b.offset,3))||(b.enabled!==undefined&&typeof b.enabled!=='boolean'))return false;
+    ids.add(b.id);
+    return b.keys===undefined || (Array.isArray(b.keys)&&b.keys.every((k,i)=>
+      object(k)&&Number.isFinite(k.t)&&k.t>=0&&(!i||k.t>b.keys[i-1].t)&&vector(k.offset,3)));
+  });
+}
+
 export function readCombination(text) {
   if (typeof text !== 'string' || text.length > LIMIT) throw Error('搭配文件超过 24 MB');
   let doc;
@@ -21,6 +36,7 @@ export function readCombination(text) {
       !Array.isArray(actor.keys)
     )
       throw Error('搭配文件中的角色数据有误');
+    if(!validContactBodies(actor.contactBodies,actor.type))throw Error('碰撞体的形状、尺寸或轨迹无效');
     let past = -1;
     for (const pose of actor.keys) {
       if (
