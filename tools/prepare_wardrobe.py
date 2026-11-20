@@ -8,6 +8,8 @@ import zipfile
 from pathlib import Path
 
 from prepare_assets import image_size
+import numpy as np
+from fit_officewear import OfficeFit, values, add_attribute
 
 
 def original_image(data, folder, stem):
@@ -22,7 +24,11 @@ def append_wearables(doc,folder,wardrobe,write_image,simplify=None):
     body=doc['skins'][0]
     joint_by_name={doc['nodes'][j]['name']:j for j in body['joints']}
     manifest=json.loads(wardrobe.read('wardrobe.json'))
-    (folder/'coverage.bin').write_bytes(wardrobe.read('coverage.bin'))
+    fit=OfficeFit(doc,folder,wardrobe,manifest)
+    mask=np.frombuffer(wardrobe.read('coverage.bin'),dtype='u1').copy()
+    fit.retain_thighs(mask,manifest)
+    manifest['fitRevision']='skirt-knit-2'
+    (folder/'coverage.bin').write_bytes(mask.tobytes())
     (folder/'wardrobe.json').write_text(json.dumps(manifest,ensure_ascii=False))
     for idx in {r['mesh'] for r in manifest['bodyMasks']}:
         doc['meshes'][idx].setdefault('extras',{}).update(gameBody=True,bodyMaskGroup=idx)
@@ -30,6 +36,7 @@ def append_wearables(doc,folder,wardrobe,write_image,simplify=None):
     binary=bytearray()
     doc['buffers'].append({'uri':'clothing.bin','byteLength':0})
     buffer_number=len(doc['buffers'])-1
+    fit.add_leg_knit(binary)
     image_cache={}
     for item in manifest['items']:
         data=wardrobe.read(item['asset']);n=struct.unpack_from('<I',data,12)[0]
@@ -88,7 +95,15 @@ def append_wearables(doc,folder,wardrobe,write_image,simplify=None):
         for mi,m in enumerate(src['meshes']):
             name=m['name'];prims=[]
             for prim in m['primitives']:
-                attrs={k:acc(v) for k,v in prim['attributes'].items()}
+                attrs={k:acc(v) for k,v in prim['attributes'].items() if item['key']!='skirt' or k not in ('JOINTS_0','WEIGHTS_0')}
+                pos=values(src,[blob],prim['attributes']['POSITION'])
+                if item['key']=='skirt':
+                    joints,weights=fit.skirt_weights(pos,clothing_names)
+                    attrs['JOINTS_0']=add_attribute(doc,binary,joints,'VEC4',5123)
+                    attrs['WEIGHTS_0']=add_attribute(doc,binary,weights,'VEC4',5126)
+                if name=='Raised_Foot_Graft':
+                    side='Left' if np.mean(pos[:,0])>0 else 'Right'
+                    attrs['_HOSIERY']=add_attribute(doc,binary,fit.knit_coords(pos,side,True),'VEC4',5126)
                 if simplify is None:
                     ii=acc(prim['indices'])
                 else:
@@ -99,10 +114,11 @@ def append_wearables(doc,folder,wardrobe,write_image,simplify=None):
                     doc['accessors'].append({'bufferView':vi,'componentType':5123 if short else 5125,
                                              'count':len(tri),'type':'SCALAR'})
                 pr={'attributes':attrs,'indices':ii,'material':material(prim['material'])}
-                if 'targets' in prim:pr['targets']=[{k:acc(v) for k,v in target.items()} for target in prim['targets']]
+                if 'targets' in prim and item['key']!='stockings':pr['targets']=[{k:acc(v) for k,v in target.items()} for target in prim['targets']]
                 prims.append(pr)
             mesh={'name':name,'primitives':prims,'extras':dict(m.get('extras',{}),gameWear=item['key'],wearPart=name)}
-            if 'weights' in m:mesh['weights']=m['weights']
+            if 'weights' in m and item['key']!='stockings':mesh['weights']=m['weights']
+            elif item['key']=='stockings':mesh['extras'].pop('targetNames',None)
             mesh_id=len(doc['meshes']);doc['meshes'].append(mesh)
             node_id=len(doc['nodes']);doc['nodes'].append({'name':name,'mesh':mesh_id,'skin':skin_id})
             # All items share the body's armature. Keep one copy of each flat/raised foot.

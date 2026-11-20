@@ -17,7 +17,7 @@ POSE_LEON_BASE=/path/to/Leon_Base_Idle_Walk_Run.glb POSE_LEON_SUIT=/path/to/Leon
 
 ## 操作
 
-- 自由移动默认控制甄芙。左下摇杆轻推行走、推到底奔跑。单指绕场旋转，双指平移或缩放。
+- 自由移动默认控制甄芙，镜头位于身后 2.3 米。左下摇杆轻推行走、推到底奔跑。单指绕场旋转，双指平移或缩放。
 - 在摆姿中选片段、拖动时间轴或逐帧定格，然后调节关节。位置页可输入 X、Y、Z 和朝向，也支持按厘米微调。
 - 在「摆姿 → 关节微调 → 常用关节」中，甄芙和里昂都可分别调整阴茎根部、中段、前端的三个旋转轴。「近看当前关节」移动镜头，「复位此关节」撤销该关节偏移。甄芙可在「服装预览」切换高跟职业装、平足职业装和素体。
 - 多人模式可同时添加甄芙、里昂及其副本。各自独立保存动作、关节、位置和播放进度，镜头可对准角色或整个场景。
@@ -27,7 +27,7 @@ POSE_LEON_BASE=/path/to/Leon_Base_Idle_Walk_Run.glb POSE_LEON_SUIT=/path/to/Leon
 - 「存档」中的导出搭配生成 `.sese.json` 文件。将它导入另一份同版应用，可恢复场上角色、动作关键帧、表情进度、声音时间轴、位置和镜头。
 - 存档页支持命名保存与读取。使用相同名称会更新该存档。显示精度可在位置页选择 1K、2K 或原始最高 4K，APK 保存原始纹理和网格。
 
-现有安装包也可用于恢复编译所需的素材。把其中的 `assets/models/`、`assets/vendor/`、`assets/audio/` 及 `assets/catalog.json` 复制至 `app/src/main/assets/` 后，安装上方列出的 Three.js 依赖，再执行构建脚本。1.3.0 安装包已包含两版里昂、两个素体的扩展骨架和甄芙 R06 职业装。
+现有安装包也可用于恢复编译所需的素材。把其中的 `assets/models/`、`assets/vendor/`、`assets/audio/` 及 `assets/catalog.json` 复制至 `app/src/main/assets/` 后，安装上方列出的 Three.js 依赖。使用旧模型目录时，用 `python3 tools/prepare_wardrobe.py /path/to/Zhenfu_Officewear_R06_Preview.zip app/src/main/assets/models/zhenfu` 重建套裙蒙皮和跟随膝部矫形的丝袜。1.3.0 安装包已包含两版里昂、两个素体的扩展骨架和甄芙 R06 职业装。
 
 构建时会从 R19 绑定生成独立的 `models/zhenfu/expressions.glb`。表情轨道只驱动脸部。眨眼和胸廓呼吸各有独立片段。所有片段以静止参考姿态为首帧，可在其他引擎中按同名骨骼映射，并以首帧作为叠加参考。
 

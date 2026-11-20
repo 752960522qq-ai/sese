@@ -117,7 +117,7 @@ function setMode(next) {
     lastGait = '';
   }
   syncAll();
-  if (next === 'walk') stage.frame([chosen()]);
+  if (next === 'walk') stage.behind(chosen());
 }
 function setPane(which) {
   if (which === 'face' && !chosen()?.face) which = 'motion';
@@ -1127,7 +1127,7 @@ async function start() {
     actors.set('lead', a);
     stage.add(a);
     syncAll();
-    stage.frame([a]);
+    if(mode==='walk')stage.behind(a);else stage.frame([a]);
   });
 }
 start();

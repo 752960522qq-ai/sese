@@ -1,5 +1,7 @@
 import * as T from './vendor/three.module.min.js';
 
+import {fitHosiery,disposeHosiery} from './hosiery.js';
+
 let wardrobe;
 const variants = new WeakMap();
 
@@ -34,14 +36,25 @@ export async function applyWardrobe(actor, flags) {
   if (actor.type !== 'zhenfu') return;
   const [manifest, bytes] = await source();
   const bits = Object.fromEntries(manifest.items.map(item => [item.key, item.bit]));
+  // Keep the original sheer and welt textures on their source materials for the fitted skin.
+  let sheer,band;
+  actor.model.traverse(mesh=>{
+    if(mesh.isSkinnedMesh && mesh.userData.gameWear==='stockings'){
+      if(mesh.material.name==='sheer')sheer=mesh.material;
+      if(mesh.material.name==='sheerBand')band=mesh.material;
+    }
+  });
+  const fitted=manifest.fitRevision==='skirt-knit-2' && !!sheer && !!band;
   actor.model.traverse(mesh => {
     if (!mesh.isSkinnedMesh) return;
     const tag = mesh.userData;
+    if(fitted && mesh.geometry.hasAttribute('_hosiery'))
+      fitHosiery(actor,mesh,sheer,band,Boolean(flags & bits.stockings));
     if (tag.gameWear) {
       mesh.visible = Boolean(flags & bits[tag.gameWear]);
       if (tag.gameWear === 'stockings') {
         const alternate = flags & bits.pumps ? '_Flat_' : '_Heel_';
-        mesh.visible = mesh.visible && !tag.wearPart.includes(alternate);
+        mesh.visible = !fitted && mesh.visible && !tag.wearPart.includes(alternate);
       }
     }
     if (!tag.gameBody) return;
@@ -61,6 +74,7 @@ export async function applyWardrobe(actor, flags) {
 }
 
 export function disposeWardrobe(actor) {
+  disposeHosiery(actor);
   actor.model.traverse(mesh => {
     const v = variants.get(mesh);
     if (!v) return;

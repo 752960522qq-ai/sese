@@ -1,3 +1,4 @@
+import {previousStockChapter} from './stock-chapter.js';
 import {
   copy,
   editableCast,
@@ -114,21 +115,22 @@ export function mountStory(stage) {
     files.set(fileKey(r.name), r);
     change(r);
   }
+  async function loadTemplate(name, displayName=name) {
+    const res=await fetch('./story/templates/'+name);
+    if(!res.ok)throw Error('无法载入模板 '+name);
+    return makeRecord(displayName,await res.json());
+  }
   async function init() {
     if (started) return started;
     started = (async () => {
       const draft = await loadDraft();
       for (const r of draft.files) files.set(fileKey(r.name), r);
       if (draft.ui) Object.assign(ui, draft.ui);
-      const missing = templates.filter(name => !files.has(fileKey(name)));
+      const old=files.get(fileKey('chapter01.level.json'));
+      const refresh=old?.kind==='level' && await previousStockChapter(old.doc);
+      const missing = templates.filter(name => !files.has(fileKey(name)) || (refresh && name==='chapter01.level.json'));
       if (missing.length) {
-        const records = await Promise.all(
-          missing.map(async (name) => {
-            const res = await fetch('./story/templates/' + name);
-            if (!res.ok) throw Error('无法载入模板 ' + name);
-            return makeRecord(name, await res.json());
-          })
-        );
+        const records = await Promise.all(missing.map(name=>loadTemplate(name)));
         records.forEach(put);
         await flush();
       }
@@ -216,7 +218,9 @@ export function mountStory(stage) {
     message('');
   }
   async function imports(list) {
-    const records = await readFiles(list);
+    const imported = await readFiles(list);
+    const records = await Promise.all(imported.map(async r=>
+      r.kind==='level' && await previousStockChapter(r.doc) ? loadTemplate('chapter01.level.json',r.name) : r));
     const conflicts = [];
     for (const r of records) {
       const old = files.get(fileKey(r.name));

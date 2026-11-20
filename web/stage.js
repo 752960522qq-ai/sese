@@ -171,6 +171,12 @@ export class Stage {
     this.camera.position.copy(center).addScaledVector(dir, distance);
     this.controls.update();
   }
+  behind(actor) {
+    const [x,y,z]=actor.state.p, yaw=T.MathUtils.degToRad(actor.state.yaw);
+    this.controls.target.set(x,y+1.02,z);
+    this.camera.position.set(x-2.3*Math.sin(yaw),y+1.62,z-2.3*Math.cos(yaw));
+    this.controls.update();
+  }
   follow(dx, dz) {
     this.camera.position.x += dx;
     this.camera.position.z += dz;
