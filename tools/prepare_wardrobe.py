@@ -27,7 +27,8 @@ def append_wearables(doc,folder,wardrobe,write_image,simplify=None):
     fit=OfficeFit(doc,folder,wardrobe,manifest)
     mask=np.frombuffer(wardrobe.read('coverage.bin'),dtype='u1').copy()
     fit.retain_thighs(mask,manifest)
-    manifest['fitRevision']='skirt-knit-2'
+    manifest['fitRevision']='skirt-knit-3'
+    manifest['skirtProbes']=fit.skirt_probes()
     (folder/'coverage.bin').write_bytes(mask.tobytes())
     (folder/'wardrobe.json').write_text(json.dumps(manifest,ensure_ascii=False))
     for idx in {r['mesh'] for r in manifest['bodyMasks']}:
@@ -37,6 +38,7 @@ def append_wearables(doc,folder,wardrobe,write_image,simplify=None):
     doc['buffers'].append({'uri':'clothing.bin','byteLength':0})
     buffer_number=len(doc['buffers'])-1
     fit.add_leg_knit(binary)
+    fit.fit_interior(binary)
     image_cache={}
     for item in manifest['items']:
         data=wardrobe.read(item['asset']);n=struct.unpack_from('<I',data,12)[0]
@@ -104,7 +106,9 @@ def append_wearables(doc,folder,wardrobe,write_image,simplify=None):
                 if name=='Raised_Foot_Graft':
                     side='Left' if np.mean(pos[:,0])>0 else 'Right'
                     attrs['_HOSIERY']=add_attribute(doc,binary,fit.knit_coords(pos,side,True),'VEC4',5126)
-                if simplify is None:
+                # Long decimated faces at the hem cut across the moving thigh.
+                # Retain the skirt panels and their trim as one matching topology.
+                if simplify is None or item['key']=='skirt':
                     ii=acc(prim['indices'])
                 else:
                     tri, count=simplify(src,blob,prim)

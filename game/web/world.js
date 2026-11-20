@@ -254,7 +254,7 @@ export class CityWorld{
     for(const a of this.cast){
       if(a.duration>0){const t=time*a.state.rate;a.state.time=a.state.clip==='@keys'?Math.min(t,a.duration):t%a.duration;}
       if(a.face?.clip){const f=a.face.state;const t=Math.max(0,time-f.delay);f.time=f.loop?t%a.face.clip.duration:Math.min(t,a.face.clip.duration);f.wait=Math.max(0,f.delay-time);}
-      a.apply();
+      a.apply(a.state.clip==='@keys'?'once':'loop');
       if(a.sound?.duration){
         // Use module time for each cue, so speed changes affect subsequent cue timing.
         if(startSound)a.sound.pause();

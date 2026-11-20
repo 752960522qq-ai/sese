@@ -80,4 +80,4 @@ python3 game/tools/prepare_vehicle.py /path/to/hero13_city_v24_07_酒店区块�
 bash game/tools/build.sh
 ```
 
-城市底包为 `hero13_city_v23_A_01-04.zip`、`hero13_city_v23_B_05-08.zip`、`hero13_city_v23_C_09-18.zip`，叠加 v24 第七区更新包后，构建器会用官方清单校验全部 18 个原始区块。从已交付游戏 APK 恢复 `assets/` 时，可将其作为 ASSET_DIR。用上方的 `prepare_city.py` 和 `prepare_cast.py` 重建酒店楼层与碰撞索引、套裙蒙皮和贴合腿部的丝袜。成品在 GAME_BUILD_DIR 的 `Zhenfu-City-0.2.0.apk`。默认使用本机测试证书，可用 GAME_KEYSTORE、GAME_KEY_ALIAS、GAME_KEY_PASS 指定发行证书。城市场景和车辆的署名收录在 APK 的 `assets/city/credits/`。
+城市底包为 `hero13_city_v23_A_01-04.zip`、`hero13_city_v23_B_05-08.zip`、`hero13_city_v23_C_09-18.zip`，叠加 v24 第七区更新包后，构建器会用官方清单校验全部 18 个原始区块。从已交付游戏 APK 恢复 `assets/` 时，可将其作为 ASSET_DIR。用上方的 `prepare_city.py` 和 `prepare_cast.py` 重建酒店楼层与碰撞索引、套裙、贴合腿部的丝袜和臀部内壁。角色缓存中的 `wardrobe.json` 会标记本次适配版本 `skirt-knit-3`。成品在 GAME_BUILD_DIR 的 `Zhenfu-City-0.2.0.apk`。默认使用本机测试证书，可用 GAME_KEYSTORE、GAME_KEY_ALIAS、GAME_KEY_PASS 指定发行证书。城市场景和车辆的署名收录在 APK 的 `assets/city/credits/`。

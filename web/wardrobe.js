@@ -1,5 +1,6 @@
 import * as T from './vendor/three.module.min.js';
 
+import {attachSkirtFit} from './skirt-fit.js';
 import {fitHosiery,disposeHosiery} from './hosiery.js';
 
 let wardrobe;
@@ -44,7 +45,7 @@ export async function applyWardrobe(actor, flags) {
       if(mesh.material.name==='sheerBand')band=mesh.material;
     }
   });
-  const fitted=manifest.fitRevision==='skirt-knit-2' && !!sheer && !!band;
+  const fitted=['skirt-knit-2','skirt-knit-3'].includes(manifest.fitRevision) && !!sheer && !!band;
   actor.model.traverse(mesh => {
     if (!mesh.isSkinnedMesh) return;
     const tag = mesh.userData;
@@ -69,11 +70,14 @@ export async function applyWardrobe(actor, flags) {
     if (!v.options.has(flags)) v.options.set(flags, maskedGeometry(v.original, v.mask, flags));
     mesh.geometry = v.options.get(flags);
   });
+  if(flags & bits.skirt)attachSkirtFit(actor,manifest.skirtProbes);
   actor.model.position.y = flags & bits.pumps ? manifest.shoeLiftMetres : 0;
   actor.revision++;
 }
 
 export function disposeWardrobe(actor) {
+  actor.skirtFit?.dispose();
+  actor.skirtFit=null;
   disposeHosiery(actor);
   actor.model.traverse(mesh => {
     const v = variants.get(mesh);
