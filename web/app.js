@@ -145,6 +145,7 @@ function syncAll() {
   const a = chosen();
   if (!a) return;
   syncVisible();
+  stage.contacts.debugBodyActor=$('bodyGuide').checked?a:null;
   $('actor').replaceChildren(...all().map((item) => option(item.state.id, item.state.label)));
   $('actor').value = selected;
   $('outfitRow').hidden = a.type !== 'zhenfu';
@@ -600,6 +601,7 @@ function sceneData() {
     mode,
     group,
     camera: stage.snapshot(),
+    ...(stage.city.id?{backdrop:stage.city.id}:{}),
     actors: all().map((a) => ({ ...copy(a.state), audio: a.sound.snapshot() }))
   };
 }
@@ -632,6 +634,8 @@ async function restoreScene(data) {
   const prepared = [];
   try {
     for (const state of data.actors) prepared.push(await createActor(state));
+    await stage.city.place(data.backdrop || '');
+    $('stageCity').value=stage.city.id;
   } catch (e) {
     prepared.forEach((a) => a.dispose());
     throw e;
@@ -937,6 +941,12 @@ function loop(ms) {
   stage.draw(actors.values(), chosen(), mode === 'pose');
 }
 function bind() {
+  $('stageCity').onchange=()=>{
+    if(locked)return;
+    const id=$('stageCity').value;
+    working('正在载入排练地点…',()=>stage.city.place(id)).finally(()=>{$('stageCity').value=stage.city.id;});
+  };
+  $('bodyGuide').onchange=()=>{stage.contacts.debugBodyActor=$('bodyGuide').checked?chosen():null;stage.dirty=true;};
   syncContact=contactEditor(chosen,()=>stage,clockUI);
   controls();
   bindFace();
@@ -1088,6 +1098,10 @@ async function start() {
   bind();
   try {
     stage = new Stage($('world'));
+    stage.city.read().then(({places})=>{
+      for(const [id,place] of places)$('stageCity').add(new Option(place.name,id));
+      $('stageCity').value=stage.city.id;
+    }).catch(error=>notify(error.message));
   } catch (e) {
     progress('无法启动 3D 画面，请检查 Android System WebView 与 OpenGL ES 3 支持');
     console.error(e);

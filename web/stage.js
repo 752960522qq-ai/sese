@@ -1,3 +1,4 @@
+import { CityBackdrop } from './city-backdrop.js';
 import * as T from './vendor/three.module.min.js';
 import { OrbitControls } from './vendor/controls/OrbitControls.js';
 import { ContactWorld } from './contact-world.js';
@@ -20,6 +21,7 @@ export class Stage {
     this.contacts = new ContactWorld(this.scene);
     this.scene.background = new T.Color(0x263a3c);
     this.scene.fog = new T.FogExp2(0x263a3c, 0.065);
+    this.city=new CityBackdrop(this);
     this.camera = new T.PerspectiveCamera(38, 1, 0.025, 140);
     this.controls = new OrbitControls(this.camera, canvas);
     this.controls.target.set(0, 0.92, 0);

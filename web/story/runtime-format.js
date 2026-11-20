@@ -114,8 +114,8 @@ export function documentLevel(data) {
     Object.keys(n).length > 800
   )
     fail('关卡标识、标题或起始节点有误');
-  if (!['hero13-v23', 'hero13-v24'].includes(data.city) || !vec(data.spawn, 3))
-    fail('城市须为 hero13-v23 或 hero13-v24，出生点须为三维坐标');
+  if (!['hero13-v23', 'hero13-v24', 'hero13-v25', 'hero13-v26', 'hero13-v27'].includes(data.city) || !vec(data.spawn, 3))
+    fail('城市须为 hero13-v23 至 hero13-v27，出生点须为三维坐标');
   const links = [],
     refs = new Set();
   for (const [key, node] of Object.entries(n)) {

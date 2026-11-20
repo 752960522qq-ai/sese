@@ -10,12 +10,14 @@
 npm install --ignore-scripts
 python3 tools/prepare_assets.py --zhenfu /path/to/Zhenfu_R19.glb --leon /path/to/Leon_Kennedy_7_Motions.glb
 python3 tools/prepare_audio.py /path/to/Game_Audio_Cues.zip
-POSE_LEON_BASE=/path/to/Leon_Base_Idle_Walk_Run.glb POSE_LEON_SUIT=/path/to/Leon_Suit_Idle_Walk_Run.glb POSE_WARDROBE=/path/to/Zhenfu_Officewear_R06_Preview.zip bash tools/build-apk.sh
+POSE_LEON_BASE=/path/to/Leon_Base_Idle_Walk_Run.glb POSE_LEON_SUIT=/path/to/Leon_Suit_Idle_Walk_Run.glb POSE_WARDROBE=/path/to/Zhenfu_Officewear_R06_Preview.zip POSE_CITY_DIR=/path/to/mobile-city bash tools/build-apk.sh
 ```
 
-构建结果位于 `build/PoseStudio.apk`。可通过 `POSE_KEYSTORE`、`POSE_KEY_ALIAS` 和 `POSE_KEY_PASS` 指定自己的签名，缺省使用本机测试签名。模型和纹理随 APK 离线提供，应用无需网络权限。存档保存在应用私有存储。
+构建结果为 `build/PoseStudio.apk`。将城市篇构建的移动端城市目录传给 `POSE_CITY_DIR`。可通过 `POSE_KEYSTORE`、`POSE_KEY_ALIAS` 和 `POSE_KEY_PASS` 指定自己的签名，缺省使用本机测试签名。模型和纹理随 APK 离线提供，应用无需网络权限。存档保存在应用私有存储。
 
 ## 操作
+
+「排练地点」可切换到 hero_13 v27 的不同街区、云庭酒店或澜庭海景餐厅。保存场景时会记录取景地点。
 
 - 自由移动默认控制甄芙，镜头位于身后 2.3 米。左下摇杆轻推行走、推到底奔跑。单指绕场旋转，双指平移或缩放。
 - 在摆姿中选片段、拖动时间轴或逐帧定格，然后调节关节。位置页可输入 X、Y、Z 和朝向，也支持按厘米微调。
@@ -29,6 +31,8 @@ POSE_LEON_BASE=/path/to/Leon_Base_Idle_Walk_Run.glb POSE_LEON_SUIT=/path/to/Leon
 
 ### 柔性碰撞
 
+在编辑面板勾选「显示所选角色的身体碰撞体」。甄芙、素体里昂和西装里昂各有三段胶囊，随对应骨骼移动，在多人场景中可触发另一角色的柔性开口。
+
 选择甄芙，进入「摆姿 → 动作 → 柔性碰撞」。选择球形或胶囊形，可调整直径、深度和左右偏移。深度沿开口向内为正。勾选「显示碰撞轮廓」可看到道具的位置。道具接触时带动开口和内壁，撤出后组织逐渐回弹。
 
 在时间轴上选定时刻，再点「记录碰撞位置」。也可以填写秒数，将轨迹延伸到原片段结束之后。已有位置点时，移动滑块会写入当前时刻。轨迹随当前角色动作、多人搭配和剧情中的动作一同导出。可以用多个球体或胶囊描述同一不规则道具。
@@ -40,11 +44,11 @@ POSE_LEON_BASE=/path/to/Leon_Base_Idle_Walk_Run.glb POSE_LEON_SUIT=/path/to/Leon
 
 ## 剧情制作与城市游戏
 
-打开「剧情制作」，可直接修改内置的《第七区碰面》和《三人模块联调》，或导入模板 ZIP、关卡 JSON、对局模块和人物动作。节点编辑支持对白选项、步行目标、动作、对局与结尾。关卡和模块的修改自动存为本地草稿。新建关卡采用城市 v24，旧版 v23 模板也可导入。
+打开「剧情制作」，可直接修改内置的《第七区碰面》和《三人模块联调》，或导入模板 ZIP、关卡 JSON、对局模块和人物动作。节点编辑支持对白选项、步行目标、动作、对局与结尾。关卡和模块的修改自动存为本地草稿。新建关卡采用城市 v27，也可以导入 v23 至 v26 的模板。
 
 在人物动作节点选择「在舞台编排」，给当前角色或多人搭配录制关键帧，再点「写回剧情」。已有舞台编排也可直接写入。对局可分别编辑每位对手的初始值和增长参数。用「按演员表编排」载入该姿势的人物，写回时保留模块分配的角色 ID。
 
-点「导出主游戏文件」并选择一个可写目录。应用在其中创建子目录，写入关卡及它引用的模块和动作。在《甄芙 · 城市篇》0.2.0 的「关卡与动作」点「导入文件」，一次选中该子目录中的文件。关卡设置还可导出模板 ZIP，方便再次编辑或分享。「存档」中的「导出当前角色动作」可单独生成 `.action.json` 文件。
+点「导出主游戏文件」并选择一个可写目录。应用在其中创建子目录，写入关卡及它引用的模块和动作。在《甄芙 · 城市篇》0.3.0 的「关卡与动作」点「导入文件」，一次选中该子目录中的文件。关卡设置还可导出模板 ZIP，方便再次编辑或分享。「存档」中的「导出当前角色动作」可单独生成 `.action.json` 文件。
 
 ## 《明天就订车》第一章
 

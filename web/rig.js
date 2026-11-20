@@ -66,7 +66,7 @@ export function sortedJoints(actor) {
   }
   for (const [label, z, l] of aliases) {
     const name = Array.from(actor.bones.keys()).find((n) =>
-      actor.type === 'leonSuit' ? n.replace(/^ValveBiped\.?Bip01_/, '').replace(/_0[0-9]+$/, '') === valve[z] :
+      actor.type === 'leonSuit' ? n === l || n.replace(/^ValveBiped\.?Bip01_/, '').replace(/_0[0-9]+$/, '') === valve[z] :
       actor.type === 'leon'
         ? n === l
         : n.toLowerCase().replace(/^mixamorig:?/, '') === z.toLowerCase()
@@ -173,6 +173,7 @@ async function template(type, progress) {
     const expressions = type === 'zhenfu' ? await loadExpressions(base + 'expressions.glb') : null;
     return {
       scene: gltf.scene,
+      bodyColliders: spec.asset.extras?.seseBodyColliders || [],
       softRim: type === 'zhenfu' ? prepareSoftRim(gltf.scene) : null,
       neutralOutfitClips: new Set(gltf.animations.filter(c=>
         ['Idle','APose','Face_Test','Blink','BrowRaise','Smile','JawOpen'].includes(c.name))),

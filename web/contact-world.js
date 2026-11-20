@@ -41,7 +41,7 @@ function inScene(node,scene){
 export class ContactWorld {
   constructor(scene){
     this.scene=scene;this.external=new Set();this.guides=new Map();this.serial=0;
-    this.debugActor=null;this.p=new T.Vector3();this.ab=new T.Vector3();this.ap=new T.Vector3();this.previewMaterial=null;
+    this.debugActor=null;this.debugBodyActor=null;this.p=new T.Vector3();this.ab=new T.Vector3();this.ap=new T.Vector3();this.previewMaterial=null;
   }
   // The caller owns the prop and its mesh. Endpoints are local to its Object3D.
   addCollider(node,{shape,a=zero,b,radius}){
@@ -52,10 +52,10 @@ export class ContactWorld {
     this.external.add(entry);
     return ()=>this.external.delete(entry);
   }
-  shape(def,owner){
+  shape(def,owner,bodyPart=false){
     const a=new T.Vector3().fromArray(def.a),b=new T.Vector3().fromArray(def.shape==='capsule'?def.b:def.a);
     let radius=def.radius;
-    if(owner){
+    if(owner&&!bodyPart){
       const shift=contactOffset(def,contactTime(owner),this.p);
       a.add(shift);b.add(shift);
     }
@@ -68,10 +68,14 @@ export class ContactWorld {
       const node=owner ? (def.anchor==='model'?owner.model:owner.bones.get(T.PropertyBinding.sanitizeNodeName(def.anchor))) : def.node;
       if(!node)return null;
       node.updateWorldMatrix(true,false);
-      a.applyMatrix4(node.matrixWorld);b.applyMatrix4(node.matrixWorld);
+      a.applyMatrix4(node.matrixWorld);
+      const end=bodyPart&&def.endAnchor?owner.bones.get(def.endAnchor):node;
+      if(!end)return null;
+      if(end!==node)end.updateWorldMatrix(true,false);
+      b.applyMatrix4(end.matrixWorld);
       radius*=node.matrixWorld.getMaxScaleOnAxis();
     }
-    return {key:owner?owner.root.uuid+'/'+def.id:def,a,b,r:radius};
+    return {key:owner?owner.root.uuid+(bodyPart?'/body/':'/prop/')+def.id:def,a,b,r:radius,bodyOwner:bodyPart?owner:null};
   }
   guide(shape){
     let g=this.guides.get(shape.key);
@@ -93,11 +97,22 @@ export class ContactWorld {
     this.serial++;
     const list=Array.from(actors),shapes=[],guides=new Set();
     let dirty=false;
+    const receivers=list.filter(actor=>actor.root.visible&&actor.softRim);
     for(const entry of this.external){
       if(inScene(entry.node,this.scene))shapes.push(this.shape(entry,null));
     }
     for(const actor of list){
       if(!actor.root.visible)continue;
+      // An anatomical chain can contact another receiver. Ignore its owner's own
+      // cuff, while keeping authored props able to interact with their host actor.
+      if(actor===this.debugBodyActor||receivers.some(receiver=>receiver!==actor)){
+        for(const def of actor.source.bodyColliders||[]){
+          const shape=this.shape(def,actor,true);
+          if(!shape)continue;
+          shapes.push(shape);
+          if(actor===this.debugBodyActor){this.guide(shape);guides.add(shape.key);dirty=true;}
+        }
+      }
       for(const def of actorContactBodies(actor)){
         if(def.enabled===false)continue;
         const shape=this.shape(def,actor);
@@ -117,12 +132,14 @@ export class ContactWorld {
       if(!shapes.length && !rim.active){rim.history.clear();continue;}
       const hip=actor.bones.get('mixamorigHips');
       if(hip)hip.getWorldPosition(this.p);
-      const near=hip?shapes.filter(s=>{
+      const near=shapes.filter(s=>{
+        if(s.bodyOwner===actor)return false;
+        if(!hip)return true;
         this.ab.subVectors(s.b,s.a);this.ap.subVectors(this.p,s.a);
         const t=T.MathUtils.clamp(this.ap.dot(this.ab)/(this.ab.lengthSq()||1),0,1);
         // Include a plausible inter-frame sweep before the detailed query.
         return this.ap.addScaledVector(this.ab,-t).lengthSq()<(.55+s.r)**2;
-      }):shapes;
+      });
       if(!near.length && !rim.active){rim.history.clear();continue;}
       rim.frame(this.serial);
       if(rim.step(near,Math.max(0,Math.min(.15,dt))))dirty=true;

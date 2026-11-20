@@ -16,6 +16,20 @@ if [[ -n "${POSE_WARDROBE:-}" ]]; then
     python3 tools/prepare_wardrobe.py "$POSE_WARDROBE" app/src/main/assets/models/zhenfu
 fi
 test -s app/src/main/assets/models/zhenfu/dressed.gltf || { echo 'Set POSE_WARDROBE to the current office wardrobe ZIP.' >&2; exit 1; }
+python3 tools/prepare_body_contacts.py app/src/main/assets/models
+city_dir="${POSE_CITY_DIR:-app/src/main/assets/city}"
+test -s "$city_dir/index.json" || { echo 'Set POSE_CITY_DIR to the prepared mobile city.' >&2; exit 1; }
+if [[ "$(realpath "$city_dir")" != "$(realpath -m app/src/main/assets/city)" ]]; then
+    python3 - "$city_dir" app/src/main/assets/city <<'CITY'
+import shutil, sys
+from pathlib import Path
+src,dst=map(Path,sys.argv[1:])
+if dst.exists():
+    for p in dst.rglob('*'):
+        if p.is_file() and not (src/p.relative_to(dst)).exists():p.unlink()
+shutil.copytree(src,dst,dirs_exist_ok=True)
+CITY
+fi
 node tools/build-expressions.mjs
 cp -R web/. app/src/main/assets/
 bash tools/android-shell.sh
@@ -24,13 +38,14 @@ bt="$(find "$sdk/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -
 python3 - <<'PY'
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED, ZIP_STORED
-with ZipFile('build/shell/shell.apk') as core, ZipFile('build/unsigned.apk','w') as apk:
+with ZipFile('build/shell/shell.apk') as core, ZipFile('build/unsigned.apk','w',compresslevel=5) as apk:
     for entry in core.infolist():
         apk.writestr(entry,core.read(entry))
     root=Path('app/src/main/assets')
     for path in sorted(p for p in root.rglob('*') if p.is_file()):
-        kind=ZIP_STORED if path.suffix in {'.png','.jpg','.bin'} else ZIP_DEFLATED
-        apk.write(path,'assets/'+path.relative_to(root).as_posix(),compress_type=kind)
+        relative=path.relative_to(root)
+        stored=path.suffix in {'.png','.jpg'} or (path.suffix=='.bin' and relative.parts[0]!='city')
+        apk.write(path,'assets/'+relative.as_posix(),compress_type=ZIP_STORED if stored else ZIP_DEFLATED)
 PY
 "$bt/zipalign" -f 4 build/unsigned.apk build/aligned.apk
 keystore="${POSE_KEYSTORE:-$HOME/.android/debug.keystore}"
