@@ -1,3 +1,4 @@
+import {previousStockChapter} from './stock-chapter.js';
 import {chapterUI} from './chapter-ui.js';
 import {expandFiles} from './import-zip.js';
 import {CityWorld} from './world.js';
@@ -15,7 +16,7 @@ try{profile=JSON.parse(localStorage.getItem(storageKey))||{};}catch{profile={};}
 profile={points:0,clothes:{pumps:true,stockings:true},run:null,done:{},...profile};
 let world,level,node,config,battle,screen='loading',menu=null,pending=false,ready=false,visit=0,poseIndex=0,visualPose=-1,visualRequest=0;
 let motionTime=0,motionEnd=0,previewReturn='library',before='',stick=[0,0],pointer=null,toastId,selection='level',currentDistrict=7;
-let chapter,combatRefs=null;
+let chapter,stockChapter,combatRefs=null;
 const keyOf=r=>r.kind==='level'?'level:'+r.data.id.toLowerCase():r.name.normalize('NFC').toLowerCase();
 const resolve=name=>files.get(name.split('#')[0].normalize('NFC').toLowerCase());
 const part=name=>name?.includes('#')?name.slice(name.indexOf('#')+1):undefined;
@@ -233,10 +234,14 @@ async function preview(r){
   await busy('打开动作',async()=>{checkpoint();world.clearShow();menu=null;previewReturn=r.title;screen='preview';motionTime=0;motionEnd=await world.show(r);render();});
 }
 function endPreview(){world.clearShow();world.resetCamera();screen='home';node=null;level=null;battle=null;before='';openMenu('library');}
+async function refreshStock(record){
+  if(record.kind!=='level'||!await previousStockChapter(record.data))return record;
+  return {...stockChapter,name:record.name,key:record.key,date:record.date};
+}
 async function addFiles(list){
   if(!list.length)return;
   const inSlot=screen==='slot'&&!menu,staged=[],unique=new Set();
-  for(const f of await expandFiles(list)){const r=await readImport(f,inspectGlb);r.key=keyOf(r);r.date=Date.now();
+  for(const f of await expandFiles(list)){const r=await refreshStock(await readImport(f,inspectGlb));r.key=keyOf(r);r.date=Date.now();
     if(unique.has(r.key))throw Error('本次选择有重复的文件名或关卡 ID');unique.add(r.key);staged.push(r);}
   await writeBatch(staged);for(const r of staged)files.set(r.key,r);
   selection=staged.some(r=>r.kind==='level')?'level':staged[0].kind==='glb'?'motion':staged[0].kind;
@@ -264,7 +269,7 @@ function loop(ms){
       walkingMs+=dt;if(walkingMs>3){walkingMs=0;currentDistrict=districtAt();bars();checkpoint();}
       if(node?.kind==='walk'){
         const dist=Math.hypot(node.position[0]-world.pos.x,node.position[2]-world.pos.z);$('objective').textContent=node.label+'  ·  '+Math.ceil(dist)+' 米';
-        if(dist<=node.radius)follow(node.next);
+        if(dist<=node.radius&&Math.abs(world.pos.y-node.position[1])<=1.65)follow(node.next);
       }
     }else if(screen==='battle'){
       if(visualPose!==battle.pose){if(!showPending){showPending=true;visual().catch(e=>{notify(e.message);menu='error';panel('动作载入失败','动作不可用',e.message);btn('返回手记',()=>openMenu('home'));bars();}).finally(()=>showPending=false);}}
@@ -285,7 +290,12 @@ async function start(){
   for(const name of ['chapter01.level.json','district07.level.json','first-meeting.level.json','arrival.action.json','city-duo-opponents.module.json','cast-three.sese.json']){
     const value=await (await fetch('./examples/'+name)).blob(),r=await readImport(new File([value],name),inspectGlb);r.key=keyOf(r);files.set(r.key,r);built.add(r.key);
   }
-  for(const r of await readAll())files.set(r.key,r);
+  stockChapter=files.get('level:tomorrow.chapter01');
+  for(const stored of await readAll()){
+    const r=await refreshStock(stored);
+    if(r!==stored)await writeBatch([r]);
+    files.set(r.key,r);
+  }
   world=new CityWorld($('world'),notify);await world.init(profile.clothes,startPos,t=>$('copy').textContent=t);
   chapter=chapterUI({world,panel,btn,el,follow,checkpoint,notify,resolve,part,resetInput:resetStick,
     info:()=>({node,state:profile.run?.detail}),redraw:render,screen:value=>{screen=value;render();},

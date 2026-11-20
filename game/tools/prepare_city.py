@@ -11,6 +11,7 @@ import zipfile
 from collections import defaultdict
 from pathlib import Path
 import numpy as np
+from bake_collision import bake as bake_collision
 from PIL import Image
 from scipy.spatial.transform import Rotation
 
@@ -71,6 +72,32 @@ def surface(name, district):
         return 'walk'
     return 'solid'
 
+HOTEL_LEVELS={'01_LOBBY_AND_DINING':1,'02_EVENTS_AND_MEETINGS':2,'03_CLUB_AND_WELLNESS':3,
+              '04_to_22_TOWER_AND_TERRACES':4,'23_PRESIDENTIAL_LEVEL':23}
+
+def hotel_level(name, parent):
+    if name in HOTEL_LEVELS:return HOTEL_LEVELS[name]
+    # Exterior shell, slabs, soffits and the roof must remain visible from the street.
+    if parent>0 and (name.startswith(('H01_Canopy','H23_99_LiftOff_Roof','H04_','H23_01_Penthouse_Structure'))
+                     or '_Plate_and_Soffit' in name or name.startswith(('H01_Envelope','H02_Envelope','H03_Envelope','H23_Envelope'))):
+        return -parent
+    return parent
+
+def material_batches(entries):
+    # Keep the exterior in one draw per material from the street, with contiguous
+    # index ranges so interior views can still select neighbouring structural slabs.
+    shells=defaultdict(dict)
+    for (kind,material,level),parts in entries.items():
+        if level<0:shells[kind,material][-level]=parts
+        else:yield kind,material,parts,({'hotelLevel':level} if level else {})
+    for (kind,material),floors in shells.items():
+        parts=[];ranges=[];offset=0
+        for level,batch in sorted(floors.items()):
+            count=sum(len(part[3]) for part in batch)
+            ranges.append([level,offset,count]);offset+=count
+            parts.extend(batch)
+        yield kind,material,parts,{'hotelShell':ranges}
+
 class District:
     def __init__(self, raw, number, out, simplify):
         jlen=struct.unpack_from('<I',raw,12)[0]
@@ -104,10 +131,13 @@ class District:
             tex=self.images[source]
         self.mats[number]=(out,tex)
         return out,tex
-    def node(self, idx, parent):
+    def node(self, idx, parent, level=0):
         doc=self.doc;n=doc['nodes'][idx];m=parent@matrix(n)
+        name=n.get('name','')
+        if self.num==7:
+            level=hotel_level(name,level)
         if 'mesh' in n:
-            name=n.get('name','');kind=surface(name,self.num)
+            kind=surface(name,self.num)
             for prim in doc['meshes'][n['mesh']]['primitives']:
                 if prim.get('mode',4)!=4:continue
                 attrs=prim['attributes'];local=np.ascontiguousarray(accessor(doc,self.blob,attrs['POSITION']),dtype=np.float32)
@@ -139,8 +169,8 @@ class District:
                     use=tri[codes==code]
                     point_ids,ind=np.unique(use,return_inverse=True)
                     cell=(int(code//10000)-1000,int(code%10000)-1000)
-                    self.bins[cell][(kind,mat)].append((pos[point_ids],norm[point_ids].astype('f4'),uv[point_ids].astype('f4'),ind.reshape(-1).astype('u4')))
-        for c in n.get('children',[]):self.node(c,m)
+                    self.bins[cell][(kind,mat,level)].append((pos[point_ids],norm[point_ids].astype('f4'),uv[point_ids].astype('f4'),ind.reshape(-1).astype('u4')))
+        for c in n.get('children',[]):self.node(c,m,level)
     def tile(self, cell, entries):
         blob=bytearray();v=[];a=[];mats=[];tex=[];ims=[];nodes=[];meshes=[];material_ids={};bounds=[];total=0
         def attr(arr,typ,component,box=False):
@@ -150,7 +180,8 @@ class District:
             entry={'bufferView':vid,'componentType':component,'count':len(arr),'type':typ}
             if box:entry.update(min=arr.min(axis=0).tolist(),max=arr.max(axis=0).tolist())
             a.append(entry);return len(a)-1
-        for (kind,midx),parts in entries.items():
+        collision_parts=[]
+        for kind,midx,parts,hotel in material_batches(entries):
             p,n,uv,ii=zip(*parts);p=np.concatenate(p).astype('<f4');n=np.concatenate(n).astype('<f4');uv=np.concatenate(uv).astype('<f4')
             offsets=np.cumsum([0]+[len(x[0]) for x in parts[:-1]])
             idx=np.concatenate([indices+offset for indices,offset in zip(ii,offsets)])
@@ -164,7 +195,12 @@ class District:
                 material_ids[midx]=len(mats);mats.append(material)
             primitive={'attributes':{'POSITION':attr(p,'VEC3',5126,True),'NORMAL':attr(n,'VEC3',5126)},'indices':attr(idx,'SCALAR',5123 if short else 5125),'material':material_ids[midx]}
             if self.mats[midx][1]:primitive['attributes']['TEXCOORD_0']=attr(uv,'VEC2',5126)
-            nodes.append({'mesh':len(meshes),'name':kind+str(len(meshes)),'extras':{'surface':kind}})
+            extra={'surface':kind,**hotel}
+            nodes.append({'mesh':len(meshes),'name':kind+str(len(meshes)),'extras':extra})
+            if self.num==7 and (1<=cell[0]<=2 and -6<=cell[1]<=-5) and kind in ('walk','solid'):
+                flag=(1 if kind=='walk' else 0) | (2 if mats[material_ids[midx]].get('doubleSided') else 0)
+                extra['collisionSlot']=len(collision_parts)
+                collision_parts.append((p[idx.reshape(-1,3)],flag))
             meshes.append({'primitives':[primitive]})
         name=f'd{self.num:02d}_{cell[0]}_{cell[1]}'
         doc={'asset':{'version':'2.0'},'scene':0,'scenes':[{'nodes':list(range(len(nodes)))}],'nodes':nodes,'meshes':meshes,'materials':mats,'bufferViews':v,'accessors':a,'buffers':[{'byteLength':len(blob),'uri':name+'.bin'}]}
@@ -172,7 +208,8 @@ class District:
         (self.out/(name+'.bin')).write_bytes(blob)
         (self.out/(name+'.gltf')).write_text(json.dumps(doc,separators=(',',':')))
         box=np.array(bounds)
-        return {'file':name+'.gltf','district':self.num,'bounds':[np.round(box.min(0),2).tolist(),np.round(box.max(0),2).tolist()],'triangles':total}
+        collision=bake_collision(self.out,name,collision_parts)
+        return {**({'collision':collision} if collision else {}),'file':name+'.gltf','district':self.num,'bounds':[np.round(box.min(0),2).tolist(),np.round(box.max(0),2).tolist()],'triangles':total}
     def bake(self):
         for root in self.doc['scenes'][self.doc.get('scene',0)]['nodes']:self.node(root,np.eye(4))
         return [self.tile(cell,batch) for cell,batch in self.bins.items()]

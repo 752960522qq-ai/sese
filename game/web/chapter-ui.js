@@ -1,5 +1,12 @@
 const byId=id=>document.getElementById(id);
 const gap=(pos,target)=>Math.hypot(pos.x-target[0],pos.z-target[2]);
+const sameFloor=(pos,p)=>Math.abs(pos.y-p[1])<=1.65;
+function crossedWaypoint(x,z,pos,p,radius) {
+  if(!sameFloor(pos,p))return false;
+  const dx=pos.x-x,dz=pos.z-z;
+  const f=Math.max(0,Math.min(1,((p[0]-x)*dx+(p[2]-z)*dz)/(dx*dx+dz*dz||1)));
+  return Math.hypot(x+f*dx-p[0],z+f*dz-p[2])<=radius;
+}
 export function chapterUI(ctx) {
   const {world,info,panel,btn,el,follow,checkpoint,notify,resolve,part,startModule,startMotion,resetInput}=ctx;
   const car=world.car, keys=new Set();
@@ -24,6 +31,7 @@ export function chapterUI(ctx) {
   function tick(dt,pressed,stick){
     const {node:n,state:s}=info(),free=!n;
     const key=(...ids)=>ids.some(k=>keys.has(k)||pressed.has(k))?1:0;
+    const fromX=car.pos.x,fromZ=car.pos.z;
     if(car.occupied)car.drive(key('gas','KeyW','ArrowUp')-key('brake','KeyS','ArrowDown'),key('left','KeyA','ArrowLeft')-key('right','KeyD','ArrowRight'),dt);
     else{
       const x=stick[0]+key('KeyD','ArrowRight')-key('KeyA','ArrowLeft'),y=stick[1]+key('KeyS','ArrowDown')-key('KeyW','ArrowUp');
@@ -34,7 +42,7 @@ export function chapterUI(ctx) {
       const d=gap(world.pos,n.position);
       objective.textContent=n.label+' · '+Math.ceil(d)+' 米';
       bar.hidden=false;
-      op(d<=n.radius?n.verb:null,()=>{s.open=true;checkpoint();ctx.screen('document');});
+      op(d<=n.radius&&sameFloor(world.pos,n.position)?n.verb:null,()=>{s.open=true;checkpoint();ctx.screen('document');});
       return;
     }
     if((n?.kind!=='drive'&&!free)||!car.active){
@@ -47,15 +55,15 @@ export function chapterUI(ctx) {
     if(!car.occupied){
       toward(car.pos.toArray());
       const d=car.distance();objective.textContent=(n?.label??'自由探索')+' · 展厅 SUV '+Math.ceil(d)+' 米';
-      op(d<=5.5?'上车':null,()=>{resetInput();car.board();world.mark(goal?.position);checkpoint();tick(0,pressed,[0,0]);});
+      op(d<=5.5&&Math.abs(world.pos.y-car.pos.y)<2?'上车':null,()=>{resetInput();car.board();world.mark(goal?.position,goal?.radius);checkpoint();tick(0,pressed,[0,0]);});
       return;
     }
     const d=goal?gap(car.pos,goal.position):Infinity;
-    if(goal&&!final&&d<=goal.radius){s.index++;world.mark(n.route[s.index].position);checkpoint();}
+    if(goal&&!final&&crossedWaypoint(fromX,fromZ,car.pos,goal.position,goal.radius)){s.index++;const next=n.route[s.index];world.mark(next.position,next.radius);checkpoint();}
     const g=n?.route[s?.index??0];
     if(g)toward(g.position);else delete objective.dataset.nav;
     objective.textContent=g?(s.index+1)+' / '+n.route.length+'  '+g.label+' · '+Math.ceil(gap(car.pos,g.position))+' 米':'自由驾驶';
-    const parked=Math.abs(car.speed)<.8,arrived=final&&d<=goal.radius;
+    const parked=Math.abs(car.speed)<.8,arrived=final&&sameFloor(car.pos,goal.position)&&d<=goal.radius;
     op(arrived?(parked?'停车并下车':'刹停后下车'):'下车',()=>{
       if(!car.exit()){notify('车门旁空间不足，请挪车后下车');return;}
       resetInput();clearInput();checkpoint();
@@ -71,8 +79,8 @@ export function chapterUI(ctx) {
     if(n.kind==='drive'){
       s.index=Math.min(s.index||0,n.route.length-1);
       await car.park(n.car,n.heading,s.car);
-      if(n.passenger&&!car.occupied)await world.showCompanion();
-      world.mark(car.occupied?n.route[s.index].position:car.pos.toArray());
+      if(n.passenger&&!car.occupied)await world.showCompanion(false);
+      world.mark(car.occupied?n.route[s.index].position:car.pos.toArray(),car.occupied?n.route[s.index].radius:0);
       return 'walk';
     }
     if(n.kind==='interact'){world.mark(n.position);return s.open?'document':'walk';}

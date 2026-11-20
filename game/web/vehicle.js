@@ -35,7 +35,7 @@ export class ShowroomCar {
       const x=this.pos.x+dx,z=this.pos.z+dz,h=w.grounds(x,z,this.pos.y,.7);
       if(h===null||Math.abs(h-this.pos.y)>.72||w.blocked(dx,dz,this.pos))continue;
       this.occupied=false;this.speed=0;w.pos.set(x,h,z);w.hero.root.visible=true;w.shadow.visible=true;w.controls.enableRotate=true;
-      w.hero.state.p=w.pos.toArray();w.hero.state.yaw=this.yaw/radians;w.hero.walk('Idle',0);
+      w.hero.state.p=w.pos.toArray();w.walkYaw=w.hero.state.yaw=this.yaw/radians;w.hero.walk('Idle',0);
       w.shadow.position.set(x,h+.03,z);w.resetCamera();return true;
     }
     return false;
@@ -73,6 +73,6 @@ export class ShowroomCar {
       this.yaw=yaw;this.pos.set(this.pos.x+dx,floor,this.pos.z+dz);this.roll+=travel/tyreRadius;
     }
     this.pose();w.pos.copy(this.pos);this.chase(1-Math.exp(-dt*8));
-    if(w.lastLoad.distanceTo(w.pos)>16)w.stream().catch(e=>w.notify(e.message));
+    if(w.updateHotel?.()||w.lastLoad.distanceTo(w.pos)>16)w.stream().catch(e=>w.notify(e.message));
   }
 }
