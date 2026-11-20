@@ -2,6 +2,8 @@ import * as T from './vendor/three.module.min.js';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { useOriginalWeights } from './skin.js';
 import { attachMorphs } from './morph.js';
+import { actorContactBodies, checkContactAnchors } from './contact-world.js';
+import { prepareSoftRim, SoftRim } from './soft-rim.js';
 import { createPelvicMotion, fitPelvicInterior } from './pelvic-motion.js';
 import { disposeWardrobe } from './wardrobe.js';
 import { loadExpressions, ExpressionLayer } from './expressions.js';
@@ -171,6 +173,7 @@ async function template(type, progress) {
     const expressions = type === 'zhenfu' ? await loadExpressions(base + 'expressions.glb') : null;
     return {
       scene: gltf.scene,
+      softRim: type === 'zhenfu' ? prepareSoftRim(gltf.scene) : null,
       neutralOutfitClips: new Set(gltf.animations.filter(c=>
         ['Idle','APose','Face_Test','Blink','BrowRaise','Smile','JawOpen'].includes(c.name))),
       clips: new Map(gltf.animations.map((c) => [c.name, c])),
@@ -257,12 +260,16 @@ export class Actor {
     this.lastMotion = null;
     this.face = source.expressions ? new ExpressionLayer(this, source.expressions) : null;
     this.pelvicMotion=createPelvicMotion(this);
+    this.softRim=source.softRim ? new SoftRim(this,source.softRim) : null;
+    try{checkContactAnchors(this,this.state.contactBodies);}
+    catch(error){this.dispose();throw error;}
     this.apply();
   }
   get duration() {
-    return this.state.clip === '@keys'
+    const duration=this.state.clip === '@keys'
       ? this.state.keys.at(-1)?.t || 0
       : this.source.clips.get(this.state.clip)?.duration || 0;
+    return actorContactBodies(this).reduce((d,b)=>b.enabled===false ? d : Math.max(d,b.keys?.at(-1)?.t||0),duration);
   }
   get fps() {
     const meta = this.source.metadata.get(this.state.clip) || {};
@@ -326,6 +333,7 @@ export class Actor {
     this.apply();
   }
   walk(clip, time) {
+    this.contactClock=time;
     this.revision++;
     this.face?.restore();
     this.stopOffsets();
@@ -335,6 +343,7 @@ export class Actor {
       this.mixer.update(0);
     }
     this.place();
+    if(this.duration>0)this.contactClock=time%this.duration;
     if(this.action)this.pelvicMotion?.apply(this.action.getClip(),null,this.action.time,'loop');
     for (const driver of this.deformers) driver.update();
     this.face?.apply();
@@ -345,6 +354,7 @@ export class Actor {
   }
   apply(playbackMode=this.playbackMode) {
     const s = this.state;
+    this.contactClock=s.time;
     this.revision++;
     this.face?.restore();
     this.stopOffsets();
@@ -441,6 +451,7 @@ export class Actor {
     this.root.rotation.y = deg(s.yaw + a.yaw + turn * f - first.yaw);
   }
   dispose() {
+    this.softRim?.dispose();
     disposeWardrobe(this);
     this.sound?.pause();
     for (const driver of this.deformers) driver.dispose();

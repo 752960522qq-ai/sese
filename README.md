@@ -27,6 +27,12 @@ POSE_LEON_BASE=/path/to/Leon_Base_Idle_Walk_Run.glb POSE_LEON_SUIT=/path/to/Leon
 - 「存档」中的导出搭配生成 `.sese.json` 文件。将它导入另一份同版应用，可恢复场上角色、动作关键帧、表情进度、声音时间轴、位置和镜头。
 - 存档页支持命名保存与读取。使用相同名称会更新该存档。显示精度可在位置页选择 1K、2K 或原始最高 4K，APK 保存原始纹理和网格。
 
+### 柔性碰撞
+
+选择甄芙，进入「摆姿 → 动作 → 柔性碰撞」。选择球形或胶囊形，可调整直径、深度和左右偏移。深度沿开口向内为正。勾选「显示碰撞轮廓」可看到道具的位置。道具接触时带动开口和内壁，撤出后组织逐渐回弹。
+
+在时间轴上选定时刻，再点「记录碰撞位置」。也可以填写秒数，将轨迹延伸到原片段结束之后。已有位置点时，移动滑块会写入当前时刻。轨迹随当前角色动作、多人搭配和剧情中的动作一同导出。可以用多个球体或胶囊描述同一不规则道具。
+
 现有安装包也可用于恢复编译所需的素材。把其中的 `assets/models/`、`assets/vendor/`、`assets/audio/` 及 `assets/catalog.json` 复制至 `app/src/main/assets/` 后，安装上方列出的 Three.js 依赖。使用旧模型目录时，用 `python3 tools/prepare_wardrobe.py /path/to/Zhenfu_Officewear_R06_Preview.zip app/src/main/assets/models/zhenfu` 重建套裙、贴合膝部的丝袜和臀部内壁。当前动作适配使用 `skirt-knit-3`，覆盖旧缓存时也可将原 R06 服装文件传给 `POSE_WARDROBE`。1.3.0 安装包已包含两版里昂、两个素体的扩展骨架和甄芙 R06 职业装。
 
 构建时会从 R19 绑定生成独立的 `models/zhenfu/expressions.glb`。表情轨道只驱动脸部。眨眼和胸廓呼吸各有独立片段。所有片段以静止参考姿态为首帧，可在其他引擎中按同名骨骼映射，并以首帧作为叠加参考。

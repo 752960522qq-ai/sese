@@ -1,9 +1,10 @@
 import * as T from './vendor/three.module.min.js';
+import { contactEditor } from './contact-editor.js';
 import { Actor, fresh, characterNames, clipNames, sortedJoints, clamp } from './rig.js';
 import { Stage } from './stage.js';
 import { applyWardrobe } from './wardrobe.js';
 import { loadSoundBank, SoundTrack } from './sounds.js';
-import { exportCombination, readCombination, readBrowserFile } from './scene-file.js';
+import { exportCombination, readCombination, readBrowserFile, validContactBodies } from './scene-file.js';
 import * as db from './storage.js';
 import {mountStory} from './story/editor.js';
 
@@ -12,7 +13,7 @@ const $ = (id) => document.getElementById(id),
 const actors = new Map(),
   keysHeld = new Set(),
   joy = { x: 0, y: 0 };
-let stage,
+let syncContact, stage,
   sounds,
   selected = 'lead',
   mode = 'walk',
@@ -127,6 +128,7 @@ function setPane(which) {
     .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.pane === which)));
   for (const k of ['motion', 'face', 'sound', 'transform', 'library'])
     $('pane-' + k).hidden = k !== which;
+  syncContact?.();
   if (which === 'library') refreshSlots().catch((e) => notify(e.message));
 }
 function panel(open) {
@@ -189,6 +191,7 @@ function clockUI() {
   $('timeText').textContent = t.toFixed(2) + ' / ' + d.toFixed(2) + ' s';
   $('play').textContent = a.state.playing ? '定格' : '播放';
   $('play').disabled = !d;
+  syncContact?.();
 }
 function faceClockUI(face) {
   const s = face.state,
@@ -418,6 +421,7 @@ async function createActor(state) {
 function selectClip(name) {
   const a = chosen();
   if (!a) return;
+  a.softRim?.reset();
   a.state.clip = name;
   a.state.time = 0;
   a.state.dir = 1;
@@ -434,6 +438,7 @@ function seek(t) {
   const a = chosen();
   if (!a) return;
   freeze();
+  a.softRim?.reset();
   a.state.time = clamp(t, 0, a.duration);
   a.state.dir = 1;
   a.apply();
@@ -608,7 +613,7 @@ function validState(s) {
     s.p.length === 3 &&
     s.p.every(Number.isFinite) &&
     Number.isFinite(s.yaw) &&
-    Array.isArray(s.keys) &&
+    Array.isArray(s.keys) && validContactBodies(s.contactBodies,s.type) &&
     s.offsets &&
     typeof s.clip === 'string' &&
     Number.isFinite(s.time) &&
@@ -758,6 +763,7 @@ async function saveAction() {
           playing: s.keys.length ? false : s.playing,
           offsets: s.keys.length ? {} : copy(s.offsets)
         };
+  data.contactBodies=copy(s.contactBodies||[]);
   const id = a.type + '|' + name;
   await db.put('actions', id, name, data);
   await refreshSlots();
@@ -772,7 +778,8 @@ async function loadAction() {
   if (data.type !== a.type) throw Error('请选择相同模型的角色');
   stopWalk();
   mode = 'pose';
-  Object.assign(a.state, copy(data));
+  Object.assign(a.state, {contactBodies:[]}, copy(data));
+  a.softRim?.reset();
   a.apply();
   syncAll();
   setPane('motion');
@@ -926,9 +933,11 @@ function loop(ms) {
   if (pane === 'face' && active?.face) faceClockUI(active.face);
   if (pane === 'sound' && active?.sound) soundClockUI(active.sound);
   if (mode === 'walk' && pane === 'transform') readPosition();
+  if(!locked && stage.contacts.step(actors.values(),dt))stage.dirty=true;
   stage.draw(actors.values(), chosen(), mode === 'pose');
 }
 function bind() {
+  syncContact=contactEditor(chosen,()=>stage,clockUI);
   controls();
   bindFace();
   bindSound();

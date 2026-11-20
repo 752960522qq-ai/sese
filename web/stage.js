@@ -1,5 +1,6 @@
 import * as T from './vendor/three.module.min.js';
 import { OrbitControls } from './vendor/controls/OrbitControls.js';
+import { ContactWorld } from './contact-world.js';
 import { sortedJoints } from './rig.js';
 const up = new T.Vector3(0, 1, 0),
   point = new T.Vector3();
@@ -16,6 +17,7 @@ export class Stage {
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.16;
     this.scene = new T.Scene();
+    this.contacts = new ContactWorld(this.scene);
     this.scene.background = new T.Color(0x263a3c);
     this.scene.fog = new T.FogExp2(0x263a3c, 0.065);
     this.camera = new T.PerspectiveCamera(38, 1, 0.025, 140);

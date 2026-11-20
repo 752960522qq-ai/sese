@@ -1,4 +1,5 @@
 import * as T from '../vendor/three.module.min.js';
+import {validContactBodies} from '../scene-file.js';
 let skeletons;
 function pieces(bytes) {
   const v = new DataView(bytes);
@@ -57,6 +58,11 @@ export async function inspectGlb(file) {
         }))
         .sort((a, b) => b.hits - a.hits);
       if (!options[0].hits || options[0].hits < targets.size * 0.5) return null;
+      const bodies=a.extras?.contactBodies,type=options[0].type;
+    if(!validContactBodies(bodies,type))throw Error('GLB 片段的碰撞体或轨迹无效');
+    const bones=rigs.find(r=>r.type===type).bones;
+    for(const b of bodies||[])if(!['rim','model'].includes(b.anchor)&&!bones.has(T.PropertyBinding.sanitizeNodeName(b.anchor)))
+      throw Error('角色缺少碰撞体锚点 '+b.anchor);
       return { name: a.name || 'clip_' + i, index: i, type: options[0].type };
     })
     .filter(Boolean);

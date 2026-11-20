@@ -99,6 +99,24 @@
                 <div id="jointAxes"></div>
                 <button id="jointReset" class="text-button">复位此关节</button>
               </details>
+              <details id="rimTools" hidden>
+                <summary>柔性碰撞</summary>
+                <div class="row"><label for="rimShape">碰撞体</label><select id="rimShape">
+                  <option value="off">关闭</option><option value="sphere">球形</option><option value="capsule">胶囊形</option>
+                </select></div>
+                <div id="rimControls" hidden>
+                  <div class="time-label"><label for="rimSize">直径</label><output id="rimSizeValue"></output></div>
+                  <input id="rimSize" type="range" min="4" max="60" step="1" value="26" />
+                  <div class="time-label"><label for="rimDepth">深度（向内为正）</label><output id="rimDepthValue"></output></div>
+                  <input id="rimDepth" type="range" min="-90" max="90" step="1" value="-55" />
+                  <div class="time-label"><label for="rimSide">左右偏移</label><output id="rimSideValue"></output></div>
+                  <input id="rimSide" type="range" min="-40" max="40" step="1" value="0" />
+                  <label><input id="rimGuide" type="checkbox" checked /> 显示碰撞轮廓</label>
+                  <div class="row"><label for="rimAt">记录时间（秒）</label><input id="rimAt" type="number" min="0" step="any" placeholder="当前时刻" /></div>
+                  <div class="row"><button id="rimKey">记录碰撞位置</button><button id="rimClear">清除轨迹</button></div>
+                  <output id="rimKeyCount"></output>
+                </div>
+              </details>
               <details id="recordBox">
                 <summary>自编动作</summary>
                 <p>摆好一帧后记录，再调整姿势或位置并记录下一帧。</p>
